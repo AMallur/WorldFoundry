@@ -20,17 +20,20 @@ reside in this company-owned Supabase project.
 
 The old provider-token prototype endpoint has been retired. The new customer
 API validates WorldFoundry keys and rejects direct calls that do not come
-through the WorldFoundry gateway. Its gateway deployment still lacks its
-private production configuration, so the customer API is **not operational
-end to end yet**. The published `worldfoundry==0.2.0`
-package has not been updated to use it and does not issue WorldFoundry keys.
+through the WorldFoundry gateway. The gateway is deployed at a WorldFoundry
+address; its live health route returns 200 and unauthenticated resource calls
+return 401. An opaque WorldFoundry browser session replaces the provider JWT.
+Authenticated account, key issuance, and cross-account flows still need a
+live customer-account verification. The published `worldfoundry==0.2.0`
+package has not been updated to use the gateway and does not issue keys.
 
 ## Customer flow to implement
 
 1. Customer signs up or signs in through a WorldFoundry app. WorldFoundry's
    server uses the company Supabase project behind the scenes for identity and
-   account records. Browser sessions use secure, HTTP-only cookies; the
-   browser never receives the company's privileged provider credential.
+   account records. Browser sessions use opaque WorldFoundry tokens in secure,
+   HTTP-only cookies; neither a provider JWT nor the company's privileged
+   provider credential is sent to the browser.
 2. Customer creates a key in the WorldFoundry dashboard. The server creates a
    cryptographically random token and stores only a hash, prefix,
    owner/workspace, scopes, creation time, and optional expiry in Supabase.
@@ -66,16 +69,18 @@ the customer's computer.
 
 ## Release gates
 
-- Branded WorldFoundry domain and a server/gateway that does not expose
-  provider credentials or provider-specific URLs in customer examples or apps.
+- Company-owned custom domain for the deployed WorldFoundry gateway; the
+  current `worldfoundry-api.vercel.app` address is an interim WorldFoundry
+  branded hosting address.
 - Company-owned privileged provider credential held in a server-side secret
   store, with only the founder given human access; no customer-owned Supabase
   projects or credentials are required.
 - API key issuance, one-time display, hash-only storage, lookup, scopes,
   revocation, expiry, and tenant-isolation tests.
-- WorldFoundry account/session flow and private trace access tests.
+- Live WorldFoundry account/session, key lifecycle, tenant-isolation, and
+  private trace access tests; configure WorldFoundry-branded auth emails.
 - SDK `WorldFoundry(api_key=...)` targeting the WorldFoundry API by default.
 - Separate metering and billing verification before any customer charges.
 
 Until these gates pass, keep cloud examples out of customer onboarding and do
-not publish an SDK release that defaults to the gateway.
+not publish a stable SDK release that defaults to the gateway.

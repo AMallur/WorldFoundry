@@ -31,3 +31,17 @@ create table if not exists public.wf_gateway_config (
 );
 alter table public.wf_gateway_config enable row level security;
 revoke all on public.wf_gateway_config from anon, authenticated;
+
+-- WorldFoundry browser sessions are opaque tokens. Supabase Auth is used only
+-- server-side to verify login; its JWT is never sent to the browser.
+create table if not exists public.wf_sessions (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  token_hash text not null unique,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null,
+  revoked_at timestamptz
+);
+create index if not exists wf_sessions_owner on public.wf_sessions(owner_id, created_at desc);
+alter table public.wf_sessions enable row level security;
+revoke all on public.wf_sessions from anon, authenticated;

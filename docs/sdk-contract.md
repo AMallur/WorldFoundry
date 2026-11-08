@@ -45,9 +45,10 @@ projects = wf.projects.list()
 ```
 
 Source code now defaults to the WorldFoundry gateway. This code is **not yet
-available in the published 0.2.0 package**. The gateway deployment has not
-passed its production configuration and authenticated end-to-end verification,
-so do not use this example as a live onboarding instruction yet.
+available in the published 0.2.0 package**. The gateway's health and
+unauthenticated rejection checks are live, but key issuance and authenticated
+tenant flows have not been verified with a live customer account. Do not use
+this example as a live onboarding instruction yet.
 
 WorldFoundry owns one internal Supabase project for identity, database records,
 private traces, and key verifiers. Customer code must not need its provider

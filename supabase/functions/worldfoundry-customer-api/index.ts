@@ -42,13 +42,15 @@ async function authenticate(req: Request): Promise<Caller | null> {
     return { ownerId: data.owner_id, scopes: data.scopes, boundProject: data.project_id, session: false }
   }
   const sessionToken = cookie(req, 'wf_session')
-  if (!sessionToken) return null
-  const { data, error: authError } = await identity!.auth.getUser(sessionToken)
-  if (authError || !data.user) return null
+  if (!sessionToken || !/^wf_sess_[0-9a-f]{64}$/.test(sessionToken)) return null
+  const { data: session } = await admin!.from('wf_sessions')
+    .select('owner_id,expires_at,revoked_at')
+    .eq('token_hash', await digest(sessionToken)).maybeSingle()
+  if (!session || session.revoked_at || Date.parse(session.expires_at) <= Date.now()) return null
   const csrf = cookie(req, 'wf_csrf')
   if (!['GET', 'HEAD'].includes(req.method) &&
       (!csrf || req.headers.get('x-wf-csrf') !== csrf)) return null
-  return { ownerId: data.user.id, scopes: ['read', 'write'], boundProject: null, session: true }
+  return { ownerId: session.owner_id, scopes: ['read', 'write'], boundProject: null, session: true }
 }
 
 function permitted(caller: Caller, projectId: string): boolean {
@@ -100,15 +102,15 @@ Deno.serve(async (req: Request) => {
 
   if (collection === 'health' && req.method === 'GET') return reply({ status: 'ok' })
   let body: Record<string, any> = {}
-  if (['POST', 'PATCH'].includes(req.method)) {
+  if (['POST', 'PATCH'].includes(req.method) && !(collection === 'auth' && id === 'logout')) {
     try {
       body = await req.json()
       if (!body || Array.isArray(body) || typeof body !== 'object') return error('JSON object required')
     } catch { return error('Invalid JSON') }
   }
 
-  // Supabase Auth is called only inside company infrastructure. Session tokens
-  // are kept in secure, HTTP-only WorldFoundry cookies.
+  // Supabase Auth is called only inside company infrastructure. The browser
+  // receives an opaque WorldFoundry session, never the provider's JWT.
   if (collection === 'auth' && id === 'signup' && req.method === 'POST') {
     if (typeof body.email !== 'string' || typeof body.password !== 'string') return error('Email and password required')
     const { error: signupError } = await identity.auth.signUp({ email: body.email, password: body.password })
@@ -117,14 +119,26 @@ Deno.serve(async (req: Request) => {
   if (collection === 'auth' && id === 'login' && req.method === 'POST') {
     if (typeof body.email !== 'string' || typeof body.password !== 'string') return error('Email and password required')
     const { data, error: loginError } = await identity.auth.signInWithPassword({ email: body.email, password: body.password })
-    if (loginError || !data.session) return error('Invalid credentials', 401)
+    if (loginError || !data.user) return error('Invalid credentials', 401)
+    const sessionToken = `wf_sess_${randomHex()}`
+    const lifetime = 7 * 24 * 60 * 60
+    const { error: sessionError } = await admin.from('wf_sessions').insert({
+      owner_id: data.user.id, token_hash: await digest(sessionToken),
+      expires_at: new Date(Date.now() + lifetime * 1000).toISOString(),
+    })
+    if (sessionError) return error('Could not start session', 500)
     const csrf = randomHex(24)
     const headers = new Headers({ 'Cache-Control': 'no-store', 'Content-Type': 'application/json' })
-    headers.append('Set-Cookie', `wf_session=${data.session.access_token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${data.session.expires_in}`)
-    headers.append('Set-Cookie', `wf_csrf=${csrf}; Secure; SameSite=Strict; Path=/; Max-Age=${data.session.expires_in}`)
-    return new Response(JSON.stringify({ status: 'signed_in', expires_in: data.session.expires_in }), { headers })
+    headers.append('Set-Cookie', `wf_session=${sessionToken}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${lifetime}`)
+    headers.append('Set-Cookie', `wf_csrf=${csrf}; Secure; SameSite=Strict; Path=/; Max-Age=${lifetime}`)
+    return new Response(JSON.stringify({ status: 'signed_in', expires_in: lifetime }), { headers })
   }
   if (collection === 'auth' && id === 'logout' && req.method === 'POST') {
+    const sessionToken = cookie(req, 'wf_session')
+    if (sessionToken && /^wf_sess_[0-9a-f]{64}$/.test(sessionToken)) {
+      await admin.from('wf_sessions').update({ revoked_at: new Date().toISOString() })
+        .eq('token_hash', await digest(sessionToken)).is('revoked_at', null)
+    }
     const headers = new Headers({ 'Cache-Control': 'no-store', 'Content-Type': 'application/json' })
     headers.append('Set-Cookie', 'wf_session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0')
     headers.append('Set-Cookie', 'wf_csrf=; Secure; SameSite=Strict; Path=/; Max-Age=0')

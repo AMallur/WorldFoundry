@@ -31,9 +31,9 @@ The expanded SDK contract and its current limits are in [`docs/sdk-contract.md`]
 The intended customer/provider boundary is in
 [`docs/customer-company-boundary.md`](docs/customer-company-boundary.md).
 The company backend schema, private trace storage, and an internal API are deployed.
-The old provider-token prototype endpoint is retired. The customer gateway and WorldFoundry
-API key flow are under implementation and not ready for customer onboarding. Managed Python
-workers and customer billing are not deployed.
+The old provider-token prototype endpoint is retired. The customer gateway is deployed, but
+WorldFoundry account and API key flows still need live account verification before customer
+onboarding. Managed Python workers and customer billing are not deployed.
 
 The cloud usage ledger records client-reported episodes for operational visibility; it is not a
 billing system. Stripe metering, verified managed-compute usage, and payment webhooks are not

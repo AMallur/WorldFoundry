@@ -23,7 +23,8 @@ test('gateway hides provider address and injects server credential', async () =>
   globalThis.fetch = async (url, options) => {
     called = { url: String(url), options };
     return new Response(JSON.stringify({ data: [] }), {
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json',
+        'set-cookie': '__cf_bm=provider-cookie; Domain=supabase.co' },
     });
   };
   const res = response();
@@ -36,6 +37,7 @@ test('gateway hides provider address and injects server credential', async () =>
   assert.equal(called.options.headers['x-wf-gateway-token'], 'secret-on-server');
   assert.equal(called.options.headers.authorization, 'Bearer wf_live_example');
   assert.equal(res.headers['Cache-Control'], 'no-store');
+  assert.equal(res.headers['Set-Cookie'], undefined);
   assert.equal(String(res.body).includes('provider.example'), false);
 });
 

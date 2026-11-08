@@ -9,6 +9,7 @@ const gatewayToken = 'a'.repeat(64);
 const tables = {
   wf_gateway_config: [{ id: true, secret_hash: createHash('sha256').update(gatewayToken).digest('hex') }],
   wf_api_keys: [],
+  wf_sessions: [],
   wf_projects: [
     { id: 'project-one', owner_id: 'user-one', name: 'One' },
     { id: 'project-two', owner_id: 'user-two', name: 'Two' },
@@ -50,8 +51,8 @@ const client = {
       ? { data: { user: { id: 'user-one' } }, error: null }
       : { data: { user: null }, error: new Error('bad token') }; },
     async signInWithPassword({ email, password }) { return email === 'user@example.test' && password === 'password'
-      ? { data: { session: { access_token: 'signed-in-token', expires_in: 3600 } }, error: null }
-      : { data: { session: null }, error: new Error('bad password') }; },
+      ? { data: { user: { id: 'user-one' }, session: { access_token: 'provider-token' } }, error: null }
+      : { data: { user: null }, error: new Error('bad password') }; },
   },
 };
 
@@ -85,6 +86,9 @@ test('WorldFoundry gateway, key issuance, tenant isolation, and revocation', asy
   const sessionCookie = cookies.find(value => value.startsWith('wf_session='));
   const csrfCookie = cookies.find(value => value.startsWith('wf_csrf='));
   assert.ok(sessionCookie.includes('HttpOnly'));
+  assert.match(sessionCookie, /^wf_session=wf_sess_[0-9a-f]{64}/);
+  assert.equal(sessionCookie.includes('provider-token'), false);
+  assert.equal(JSON.stringify(tables.wf_sessions).includes('wf_sess_'), false);
   const csrf = csrfCookie.match(/^wf_csrf=([^;]+)/)[1];
   const headers = { cookie: `${sessionCookie.split(';')[0]}; ${csrfCookie.split(';')[0]}` };
 
@@ -110,4 +114,10 @@ test('WorldFoundry gateway, key issuance, tenant isolation, and revocation', asy
   assert.equal(revoke.status, 200);
   const after = await request('projects', { headers: auth });
   assert.equal(after.status, 401);
+
+  const logout = await request('auth/logout', { method: 'POST', headers });
+  assert.equal(logout.status, 200);
+  assert.ok(tables.wf_sessions[0].revoked_at);
+  const sessionAfterLogout = await request('keys', { headers });
+  assert.equal(sessionAfterLogout.status, 401);
 });

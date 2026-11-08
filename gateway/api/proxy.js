@@ -42,7 +42,10 @@ export default async function handler(req, res) {
     res.setHeader('Cache-Control', 'no-store');
     const contentType = response.headers.get('content-type');
     if (contentType) res.setHeader('Content-Type', contentType);
-    const cookies = response.headers.getSetCookie();
+    // Upstream infrastructure may set provider-domain cookies. Only forward
+    // WorldFoundry's own session and CSRF cookies to customers.
+    const cookies = response.headers.getSetCookie()
+      .filter(value => /^(wf_session|wf_csrf)=/.test(value));
     if (cookies.length) res.setHeader('Set-Cookie', cookies);
     res.send(Buffer.from(await response.arrayBuffer()));
   } catch {
