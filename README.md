@@ -8,9 +8,9 @@ experiences.
 
 Build agents anywhere. Train and test them in WorldFoundry.
 
-> **Current status:** this repository builds the `worldfoundry` distribution locally. It has not
-> been uploaded to PyPI or Homebrew. The commands labeled **verified local** below run from this checkout;
-> commands under **future distribution** are intended product UX, not currently live installs.
+> **Current status:** this repository builds the `worldfoundry` distribution locally. Check the
+> [PyPI project page](https://pypi.org/project/worldfoundry/) for a published release before
+> using registry install commands. The Homebrew formula is planned and is not published.
 
 ## What works now
 
@@ -33,9 +33,9 @@ managed Python workers and customer billing are not yet deployed.
 
 The cloud usage ledger records client-reported episodes for operational visibility; it is not a
 billing system. Stripe metering, verified managed-compute usage, and payment webhooks are not
-connected. Source is published at [AMallur/WorldFoundry](https://github.com/AMallur/WorldFoundry).
-The release workflow can publish only after the PyPI owner configures this repository as a
-trusted publisher and a version tag passes its checks.
+connected to the SDK. Source is published at [AMallur/WorldFoundry](https://github.com/AMallur/WorldFoundry).
+The GitHub release workflow verifies the package before publishing through PyPI Trusted
+Publishing.
 
 ## Install — verified local
 
@@ -57,14 +57,20 @@ uvx --python 3.13 --from . worldfoundry --version
 The explicit Python version makes the verification environment reproducible; any supported
 Python 3.11–3.13 interpreter can be used.
 
-### Future distribution — not published today
+### Registry installation
 
-These are the intended commands after names are reserved and release pipelines publish artifacts:
+Use these commands only when a release is visible on the
+[PyPI project page](https://pypi.org/project/worldfoundry/):
 
 ```bash
-# FUTURE: these package/formula names are not asserted to exist yet
 pip install worldfoundry
 uvx worldfoundry
+```
+
+Homebrew distribution is planned. This command does not work until a formula is published:
+
+```bash
+# FUTURE: no Homebrew formula has been published
 brew install worldfoundry/tap/worldfoundry
 ```
 
