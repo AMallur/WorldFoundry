@@ -32,10 +32,10 @@ The Supabase control-plane schema, private trace storage, and authenticated Edge
 managed Python workers and customer billing are not yet deployed.
 
 The cloud usage ledger records client-reported episodes for operational visibility; it is not a
-billing system. Stripe subscriptions, verified managed-compute usage, and payment webhooks are not
-connected. The source includes a GitHub trusted-publishing workflow, but it cannot publish until
-this directory is connected to a repository and a PyPI owner configures that repository as a
-trusted publisher.
+billing system. Stripe metering, verified managed-compute usage, and payment webhooks are not
+connected. Source is published at [AMallur/WorldFoundry](https://github.com/AMallur/WorldFoundry).
+The release workflow can publish only after the PyPI owner configures this repository as a
+trusted publisher and a version tag passes its checks.
 
 ## Install — verified local
 
