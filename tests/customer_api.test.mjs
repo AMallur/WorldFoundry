@@ -9,6 +9,7 @@ const gatewayToken = 'a'.repeat(64);
 const tables = {
   wf_gateway_config: [{ id: true, secret_hash: createHash('sha256').update(gatewayToken).digest('hex') }],
   wf_api_keys: [],
+  wf_api_key_activity: [],
   wf_sessions: [],
   wf_projects: [
     { id: 'project-one', owner_id: 'user-one', name: 'One' },
@@ -23,6 +24,7 @@ class Query {
   is(field, value) { this.filters.push(row => row[field] === value); return this; }
   in(field, values) { this.filters.push(row => values.includes(row[field])); return this; }
   order() { return this; }
+  limit() { return this; }
   insert(value) { this.operation = 'insert'; this.value = value; return this; }
   update(value) { this.operation = 'update'; this.value = value; return this; }
   rows() {
@@ -46,6 +48,16 @@ class Query {
 
 const client = {
   from(table) { return new Query(tables[table] ?? []); },
+  async rpc(name, { p_key_id, p_owner_id, p_method, p_route }) {
+    assert.equal(name, 'wf_record_api_key_use');
+    const key = tables.wf_api_keys.find(row => row.id === p_key_id && row.owner_id === p_owner_id);
+    if (!key || key.revoked_at) return { data: false, error: null };
+    key.request_count = (key.request_count ?? 0) + 1;
+    key.last_used_at = new Date().toISOString();
+    tables.wf_api_key_activity.push({ key_id: key.id, owner_id: key.owner_id,
+      method: p_method, route: p_route, created_at: new Date().toISOString() });
+    return { data: true, error: null };
+  },
   auth: {
     async getUser(token) { return token === 'signed-in-token'
       ? { data: { user: { id: 'user-one' } }, error: null }
@@ -108,6 +120,23 @@ test('WorldFoundry gateway, key issuance, tenant isolation, and revocation', asy
   assert.equal(own.status, 200);
   const other = await request('projects/project-two', { headers: auth });
   assert.equal(other.status, 404);
+  const detail = await request(`keys/${key.id}`, { headers });
+  assert.equal((await detail.json()).request_count, 2);
+  const activity = await request(`keys/${key.id}/activity`, { headers });
+  const recorded = (await activity.json()).data;
+  assert.equal(recorded.length, 2);
+  assert.ok(recorded.some(item => item.route === '/v1/projects/project-two'));
+
+  const scopedIssue = await request('keys', { method: 'POST',
+    headers: { ...headers, 'x-wf-csrf': csrf },
+    body: { name: 'Read only', scopes: ['read'], project_id: 'project-one' } });
+  assert.equal(scopedIssue.status, 201);
+  const scoped = await scopedIssue.json();
+  const scopedAuth = { authorization: `Bearer ${scoped.api_key}` };
+  assert.equal((await request('projects/project-one', { headers: scopedAuth })).status, 200);
+  assert.equal((await request('projects/project-two', { headers: scopedAuth })).status, 404);
+  assert.equal((await request('projects', { method: 'POST', headers: scopedAuth,
+    body: { name: 'No write' } })).status, 403);
 
   const revoke = await request(`keys/${key.id}`, { method: 'DELETE',
     headers: { ...headers, 'x-wf-csrf': csrf } });

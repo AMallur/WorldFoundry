@@ -45,3 +45,45 @@ create table if not exists public.wf_sessions (
 create index if not exists wf_sessions_owner on public.wf_sessions(owner_id, created_at desc);
 alter table public.wf_sessions enable row level security;
 revoke all on public.wf_sessions from anon, authenticated;
+
+-- Each WorldFoundry key can be managed and tracked separately. This is an
+-- operational activity log, not a billing ledger.
+alter table public.wf_api_keys
+  add column if not exists request_count bigint not null default 0;
+
+create table if not exists public.wf_api_key_activity (
+  id bigint generated always as identity primary key,
+  key_id uuid not null references public.wf_api_keys(id) on delete cascade,
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  method text not null check (method in ('GET','POST','PATCH','DELETE')),
+  route text not null check (char_length(route) between 1 and 200),
+  created_at timestamptz not null default now()
+);
+create index if not exists wf_api_key_activity_key_created
+  on public.wf_api_key_activity(key_id, created_at desc);
+alter table public.wf_api_key_activity enable row level security;
+revoke all on public.wf_api_key_activity from anon, authenticated;
+
+-- Atomic counter + activity insert. Only the company's service role can call
+-- this invoker-rights function. If a key was revoked during lookup, return
+-- false and let the API reject the request.
+create or replace function public.wf_record_api_key_use(
+  p_key_id uuid, p_owner_id uuid, p_method text, p_route text
+) returns boolean language plpgsql security invoker set search_path = public as $$
+declare v_id uuid;
+begin
+  update public.wf_api_keys
+     set last_used_at = now(), request_count = request_count + 1
+   where id = p_key_id and owner_id = p_owner_id and revoked_at is null
+     and (expires_at is null or expires_at > now())
+   returning id into v_id;
+  if v_id is null then return false; end if;
+  insert into public.wf_api_key_activity(key_id, owner_id, method, route)
+    values (p_key_id, p_owner_id, p_method, left(p_route, 200));
+  return true;
+end;
+$$;
+revoke all on function public.wf_record_api_key_use(uuid,uuid,text,text)
+  from public, anon, authenticated;
+grant execute on function public.wf_record_api_key_use(uuid,uuid,text,text)
+  to service_role;

@@ -30,7 +30,7 @@ function randomHex(bytes = 32): string {
 
 type Caller = { ownerId: string, scopes: string[], boundProject: string | null, session: boolean }
 
-async function authenticate(req: Request): Promise<Caller | null> {
+async function authenticate(req: Request): Promise<Caller | 'tracking_unavailable' | null> {
   const bearer = req.headers.get('authorization')?.match(/^Bearer (.+)$/i)?.[1]
   if (bearer?.startsWith('wf_live_')) {
     if (!/^wf_live_[0-9a-f]{64}$/.test(bearer)) return null
@@ -39,6 +39,13 @@ async function authenticate(req: Request): Promise<Caller | null> {
       .select('id,owner_id,project_id,scopes,expires_at,revoked_at')
       .eq('key_hash', keyHash).maybeSingle()
     if (!data || data.revoked_at || (data.expires_at && Date.parse(data.expires_at) <= Date.now())) return null
+    const path = new URL(req.url).pathname.split('/').filter(Boolean)
+    const route = '/' + path.slice(path.lastIndexOf('v1')).join('/')
+    const { data: recorded, error: recordError } = await admin!.rpc('wf_record_api_key_use', {
+      p_key_id: data.id, p_owner_id: data.owner_id, p_method: req.method, p_route: route,
+    })
+    if (recordError) return 'tracking_unavailable'
+    if (!recorded) return null
     return { ownerId: data.owner_id, scopes: data.scopes, boundProject: data.project_id, session: false }
   }
   const sessionToken = cookie(req, 'wf_session')
@@ -146,6 +153,7 @@ Deno.serve(async (req: Request) => {
   }
 
   const caller = await authenticate(req)
+  if (caller === 'tracking_unavailable') return error('WorldFoundry service unavailable', 503)
   if (!caller) return error('Unauthorized', 401)
   if (collection === 'auth' && id === 'me' && req.method === 'GET')
     return reply({ account_id: caller.ownerId })
@@ -154,9 +162,22 @@ Deno.serve(async (req: Request) => {
     if (!caller.session) return error('Dashboard session required', 403)
     if (req.method === 'GET' && !id) {
       const { data, error: dbError } = await admin.from('wf_api_keys')
-        .select('id,name,key_prefix,project_id,scopes,created_at,expires_at,revoked_at,last_used_at')
+        .select('id,name,key_prefix,project_id,scopes,created_at,expires_at,revoked_at,last_used_at,request_count')
         .eq('owner_id', caller.ownerId).order('created_at', { ascending: false })
       return dbError ? error('Could not list keys', 500) : reply({ data })
+    }
+    if (req.method === 'GET' && id) {
+      const { data: key } = await admin.from('wf_api_keys')
+        .select('id,name,key_prefix,project_id,scopes,created_at,expires_at,revoked_at,last_used_at,request_count')
+        .eq('id', id).eq('owner_id', caller.ownerId).maybeSingle()
+      if (!key) return error('Key not found', 404)
+      if (subresource === 'activity') {
+        const { data, error: dbError } = await admin.from('wf_api_key_activity')
+          .select('method,route,created_at').eq('key_id', id)
+          .eq('owner_id', caller.ownerId).order('created_at', { ascending: false }).limit(100)
+        return dbError ? error('Could not list activity', 500) : reply({ data })
+      }
+      return subresource ? error('Not found', 404) : reply(key)
     }
     if (req.method === 'POST' && !id) {
       if (typeof body.name !== 'string' || !body.name.trim() || body.name.length > 100)

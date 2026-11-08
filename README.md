@@ -30,6 +30,8 @@ fine-tuning, reward-model training, or model-weight updates.
 The expanded SDK contract and its current limits are in [`docs/sdk-contract.md`](docs/sdk-contract.md).
 The intended customer/provider boundary is in
 [`docs/customer-company-boundary.md`](docs/customer-company-boundary.md).
+The WorldFoundry key lifecycle and tracking contract is in
+[`docs/api-keys.md`](docs/api-keys.md).
 The company backend schema, private trace storage, and an internal API are deployed.
 The old provider-token prototype endpoint is retired. The customer gateway is deployed, but
 WorldFoundry account and API key flows still need live account verification before customer

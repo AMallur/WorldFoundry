@@ -56,6 +56,7 @@ package has not been updated to use the gateway and does not issue keys.
 | Accounts and sessions | Company Supabase Auth project, mediated by WorldFoundry server |
 | Workspaces, members, projects, resources, runs, episodes | Supabase PostgreSQL with tenant isolation |
 | API key metadata and revocation | Supabase PostgreSQL; verification on WorldFoundry server |
+| Per-key activity and last use | Company PostgreSQL activity log and atomic counters |
 | Traces, datasets, reports, exports | Private Supabase Storage plus metadata in PostgreSQL |
 | Search and recall | PostgreSQL indexes and approved search/vector features, with workspace filters |
 | Audit and usage ledgers | Append-only company-controlled records in PostgreSQL |
