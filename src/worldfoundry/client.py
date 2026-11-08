@@ -1,6 +1,7 @@
 """WorldFoundry public SDK client."""
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -15,10 +16,12 @@ class WorldFoundry(EpisodeEngine):
     def __new__(cls, home: str | Path | None = None, *, api_key: str | None = None,
                 base_url: str | None = None):
         if api_key or base_url:
-            if not api_key or not base_url or home is not None:
-                raise ValueError("Cloud mode needs both api_key and base_url, without a local home")
+            if not api_key or home is not None:
+                raise ValueError("Cloud mode needs api_key and no local home")
             from .cloud import CloudWorldFoundry
-            return CloudWorldFoundry(base_url=base_url, api_key=api_key)
+            return CloudWorldFoundry(
+                base_url=base_url or os.environ.get("WORLDFOUNDRY_API_URL"), api_key=api_key
+            )
         return super().__new__(cls)
 
     def __init__(self, home: str | Path | None = None, *, api_key: str | None = None,
@@ -39,7 +42,9 @@ class WorldFoundry(EpisodeEngine):
         return cls(data_dir)
 
     @classmethod
-    def cloud(cls, *, base_url: str, api_key: str) -> CloudWorldFoundry:
+    def cloud(cls, *, api_key: str, base_url: str | None = None) -> CloudWorldFoundry:
         from .cloud import CloudWorldFoundry
-        return CloudWorldFoundry(base_url=base_url, api_key=api_key)
+        return CloudWorldFoundry(
+            base_url=base_url or os.environ.get("WORLDFOUNDRY_API_URL"), api_key=api_key
+        )
 

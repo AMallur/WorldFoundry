@@ -32,50 +32,31 @@ are rejected explicitly. `report_path` is a local JSON file; no hosted report UR
 
 The lower-level `start`, `act`, `submit`, `export_trace`, REST, and CLI episode APIs remain usable.
 
-## Cloud client boundary
+## Customer cloud contract under development
 
-`WorldFoundry(api_key="SUPABASE_USER_ACCESS_TOKEN", base_url="https://<ref>.supabase.co/functions/v1/worldfoundry-api")` constructs an
-authenticated HTTP client. The token is a signed-in user's Supabase access token, not a project
-publishable key or a service-role key. It sends `/v1/projects`, `/v1/environments`, `/v1/agents`,
-`/v1/scenarios`, `/v1/datasets`, `/v1/training-runs`, and `/v1/episodes` requests. The cloud
-client is a transport contract, not a deployed service. A Supabase database alone cannot execute
-arbitrary Python agents or isolated simulation workers; it needs a WorldFoundry API and runner.
-
-The project `bhvffruseefvifjcutzj` has the schema applied and the `worldfoundry-api` Edge Function
-deployed at `https://bhvffruseefvifjcutzj.supabase.co/functions/v1/worldfoundry-api`. The API
-authenticates Supabase user access tokens and performs project-scoped database operations through
-row level security. A publishable key alone is not a user session.
+Customer code will create a WorldFoundry client with a **WorldFoundry API key**:
 
 ```python
-from worldfoundry.cloud import CloudWorldFoundry
+import os
+from worldfoundry import WorldFoundry
 
-wf = CloudWorldFoundry.sign_in(
-    project_url="https://bhvffruseefvifjcutzj.supabase.co",
-    publishable_key="<the project's publishable key>",
-    email="<your signed-up email>",
-    password="<your password>",
-)
-project = wf.projects.create(name="My agent lab")
-environment = wf.environments.create(
-    project_id=project["id"], name="Support desk", template="support-desk"
-)
-agent = wf.agents.register(
-    project_id=project["id"], name="Support agent", framework="python"
-)
-result = wf.training.run_local(
-    project_id=project["id"], agent=agent, environment=environment,
-    handler=my_agent, episodes=10,
-)
-print(result["summary"])
+wf = WorldFoundry(api_key=os.environ["WORLDFOUNDRY_API_KEY"])
+projects = wf.projects.list()
 ```
 
-`run_local` executes the agent and simulations on the user's computer, then records episode scores
-and private JSONL traces in the Supabase project. It does not offer managed remote execution.
-The cloud API creates run records but has no hosted Python worker attached, so bare
-`wf.training.create(...)` leaves a queued run until a runner processes it. The deployed endpoint
-is live; signed-in end-to-end execution still needs a user account and session for verification.
+Version 0.3.0 defaults to the WorldFoundry gateway. The gateway's health and
+unauthenticated rejection checks are live, but key issuance and authenticated
+tenant flows have not been verified with a live customer account. Do not use
+this example as a live onboarding instruction yet.
 
-For managed execution, add a durable queue, isolated Python workers, trace artifact storage,
-worker authentication, and report generation. Store provider secrets in a managed secret service;
-never put raw secrets in run traces or resource config.
+WorldFoundry owns one internal Supabase project for identity, database records,
+private traces, and key verifiers. Customer code must not need its provider
+URL, publishable key, service credential, or user access token. The full
+customer/company contract is in
+[`customer-company-boundary.md`](customer-company-boundary.md).
+
+Cloud `training.run_local(...)` will run simulations and user code on the
+customer's computer and sync results. It is not managed hosted Python
+execution. Hosted workers, trusted metering, and Stripe billing remain
+separate release gates.
 

@@ -1,0 +1,10 @@
+{
+  "rewrites": [
+    { "source": "/v1/:route*", "destination": "/api/proxy?route=:route*" }
+  ],
+  "functions": {
+    "api/proxy.js": {
+      "maxDuration": 30
+    }
+  }
+}

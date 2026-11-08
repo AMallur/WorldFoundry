@@ -8,9 +8,10 @@ experiences.
 
 Build agents anywhere. Train and test them in WorldFoundry.
 
-> **Current status:** this repository builds the `worldfoundry` distribution locally. Check the
-> [PyPI project page](https://pypi.org/project/worldfoundry/) for a published release before
-> using registry install commands. The Homebrew formula is planned and is not published.
+> **Current status:** `worldfoundry` is published on
+> [PyPI](https://pypi.org/project/worldfoundry/). Local episodes work without a cloud account.
+> Cloud account and key flows are in beta and have not completed live customer onboarding
+> verification. The Homebrew formula is planned and is not published.
 
 ## What works now
 
@@ -28,8 +29,14 @@ This is trajectory and evaluation infrastructure. It does **not** perform reinfo
 fine-tuning, reward-model training, or model-weight updates.
 
 The expanded SDK contract and its current limits are in [`docs/sdk-contract.md`](docs/sdk-contract.md).
-The Supabase control-plane schema, private trace storage, and authenticated Edge API are deployed;
-managed Python workers and customer billing are not yet deployed.
+The intended customer/provider boundary is in
+[`docs/customer-company-boundary.md`](docs/customer-company-boundary.md).
+The WorldFoundry key lifecycle and tracking contract is in
+[`docs/api-keys.md`](docs/api-keys.md).
+The company backend schema, private trace storage, and an internal API are deployed.
+The old provider-token prototype endpoint is retired. The customer gateway is deployed, but
+WorldFoundry account and API key flows still need live account verification before customer
+onboarding. Managed Python workers and customer billing are not deployed.
 
 The cloud usage ledger records client-reported episodes for operational visibility; it is not a
 billing system. Stripe metering, verified managed-compute usage, and payment webhooks are not
@@ -59,12 +66,11 @@ Python 3.11–3.13 interpreter can be used.
 
 ### Registry installation
 
-Use these commands only when a release is visible on the
-[PyPI project page](https://pypi.org/project/worldfoundry/):
+After version 0.3.0 appears on the [PyPI project page](https://pypi.org/project/worldfoundry/):
 
 ```bash
-pip install worldfoundry
-uvx worldfoundry
+pip install worldfoundry==0.3.0
+uvx --from worldfoundry==0.3.0 worldfoundry --version
 ```
 
 Homebrew distribution is planned. This command does not work until a formula is published:
