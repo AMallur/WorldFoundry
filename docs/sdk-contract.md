@@ -44,8 +44,7 @@ wf = WorldFoundry(api_key=os.environ["WORLDFOUNDRY_API_KEY"])
 projects = wf.projects.list()
 ```
 
-Source code now defaults to the WorldFoundry gateway. This code is **not yet
-available in the published 0.2.0 package**. The gateway's health and
+Version 0.3.0 defaults to the WorldFoundry gateway. The gateway's health and
 unauthenticated rejection checks are live, but key issuance and authenticated
 tenant flows have not been verified with a live customer account. Do not use
 this example as a live onboarding instruction yet.

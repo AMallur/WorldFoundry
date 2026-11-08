@@ -56,5 +56,5 @@ route returned 200, and unauthenticated resource calls returned 401. Local
 tests cover issuance, one-time display, hash-only storage, scopes, tenant
 isolation, activity recording, and revocation. A live account and full
 authenticated request sequence are still required before customer onboarding.
-The published `worldfoundry==0.2.0` package does not use this gateway by
-default. The next SDK source is `0.3.0.dev0` and has not been published.
+The `worldfoundry==0.3.0` SDK uses this gateway by default when given a
+WorldFoundry API key. Key issuance remains beta until live account verification.

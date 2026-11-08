@@ -8,9 +8,10 @@ experiences.
 
 Build agents anywhere. Train and test them in WorldFoundry.
 
-> **Current status:** this repository builds the `worldfoundry` distribution locally. Check the
-> [PyPI project page](https://pypi.org/project/worldfoundry/) for a published release before
-> using registry install commands. The Homebrew formula is planned and is not published.
+> **Current status:** `worldfoundry` is published on
+> [PyPI](https://pypi.org/project/worldfoundry/). Local episodes work without a cloud account.
+> Cloud account and key flows are in beta and have not completed live customer onboarding
+> verification. The Homebrew formula is planned and is not published.
 
 ## What works now
 
@@ -65,12 +66,11 @@ Python 3.11–3.13 interpreter can be used.
 
 ### Registry installation
 
-Use these commands only when a release is visible on the
-[PyPI project page](https://pypi.org/project/worldfoundry/):
+After version 0.3.0 appears on the [PyPI project page](https://pypi.org/project/worldfoundry/):
 
 ```bash
-pip install worldfoundry
-uvx worldfoundry
+pip install worldfoundry==0.3.0
+uvx --from worldfoundry==0.3.0 worldfoundry --version
 ```
 
 Homebrew distribution is planned. This command does not work until a formula is published:

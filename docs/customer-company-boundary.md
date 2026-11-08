@@ -24,8 +24,9 @@ through the WorldFoundry gateway. The gateway is deployed at a WorldFoundry
 address; its live health route returns 200 and unauthenticated resource calls
 return 401. An opaque WorldFoundry browser session replaces the provider JWT.
 Authenticated account, key issuance, and cross-account flows still need a
-live customer-account verification. The published `worldfoundry==0.2.0`
-package has not been updated to use the gateway and does not issue keys.
+live customer-account verification. The `worldfoundry==0.3.0` SDK uses the
+gateway by default when given a WorldFoundry API key; key issuance is an
+authenticated API operation, not an SDK operation.
 
 ## Customer flow to implement
 
@@ -83,5 +84,5 @@ the customer's computer.
 - SDK `WorldFoundry(api_key=...)` targeting the WorldFoundry API by default.
 - Separate metering and billing verification before any customer charges.
 
-Until these gates pass, keep cloud examples out of customer onboarding and do
-not publish a stable SDK release that defaults to the gateway.
+Until these gates pass, keep cloud examples out of customer onboarding and
+label the hosted customer API as beta. The local SDK remains independently usable.
