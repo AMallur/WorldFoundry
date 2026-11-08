@@ -7,8 +7,8 @@ const publicKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
 const companyKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 const admin = providerUrl && companyKey
   ? createClient(providerUrl, companyKey, { auth: { persistSession: false } }) : null
-const identity = providerUrl && publicKey
-  ? createClient(providerUrl, publicKey, { auth: { persistSession: false } }) : null
+const identity = () => createClient(providerUrl, publicKey,
+  { auth: { persistSession: false, autoRefreshToken: false } })
 
 const reply = (data: unknown, status = 200, headers: HeadersInit = {}) =>
   Response.json(data, { status, headers: { 'Cache-Control': 'no-store', ...headers } })
@@ -86,7 +86,7 @@ const safeEpisode = (episode: Record<string, unknown>) => {
 }
 
 Deno.serve(async (req: Request) => {
-  if (!admin || !identity) return error('WorldFoundry service unavailable', 503)
+  if (!admin || !publicKey) return error('WorldFoundry service unavailable', 503)
   const gatewayToken = req.headers.get('x-wf-gateway-token')
   if (!gatewayToken || !/^[0-9a-f]{64}$/.test(gatewayToken)) return error('Not found', 404)
   const { data: gateway } = await admin.from('wf_gateway_config').select('secret_hash')
@@ -113,12 +113,12 @@ Deno.serve(async (req: Request) => {
   // receives an opaque WorldFoundry session, never the provider's JWT.
   if (collection === 'auth' && id === 'signup' && req.method === 'POST') {
     if (typeof body.email !== 'string' || typeof body.password !== 'string') return error('Email and password required')
-    const { error: signupError } = await identity.auth.signUp({ email: body.email, password: body.password })
+    const { error: signupError } = await identity().auth.signUp({ email: body.email, password: body.password })
     return signupError ? error('Could not create account', 400) : reply({ status: 'verification_required' }, 201)
   }
   if (collection === 'auth' && id === 'login' && req.method === 'POST') {
     if (typeof body.email !== 'string' || typeof body.password !== 'string') return error('Email and password required')
-    const { data, error: loginError } = await identity.auth.signInWithPassword({ email: body.email, password: body.password })
+    const { data, error: loginError } = await identity().auth.signInWithPassword({ email: body.email, password: body.password })
     if (loginError || !data.user) return error('Invalid credentials', 401)
     const sessionToken = `wf_sess_${randomHex()}`
     const lifetime = 7 * 24 * 60 * 60
