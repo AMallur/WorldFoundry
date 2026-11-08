@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "worldfoundry"
-version = "0.2.0"
+version = "0.3.0.dev0"
 description = "Agent development and training-experience SDK"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -29,6 +29,9 @@ wf = "worldfoundry.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/worldfoundry"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/README.md", "/LICENSE", "/pyproject.toml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

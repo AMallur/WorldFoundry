@@ -59,9 +59,11 @@ class CloudResourceManager:
 
 
 class CloudWorldFoundry:
-    """Client contract; requires an independently deployed, authenticated API."""
-    def __init__(self, *, base_url: str, api_key: str):
-        transport = HTTPTransport(base_url, api_key)
+    """WorldFoundry cloud client; provider details are never customer inputs."""
+    DEFAULT_BASE_URL = "https://worldfoundry-api.vercel.app"
+
+    def __init__(self, *, api_key: str, base_url: str | None = None):
+        transport = HTTPTransport(base_url or self.DEFAULT_BASE_URL, api_key)
         self.projects = CloudResourceManager(transport, "projects")
         self.environments = CloudResourceManager(transport, "environments")
         self.agents = CloudResourceManager(transport, "agents")
@@ -72,25 +74,6 @@ class CloudWorldFoundry:
         self.runs = CloudResourceManager(transport, "training-runs")
         self.training = CloudTrainingManager(transport)
         self.episodes = CloudResourceManager(transport, "episodes")
-
-    @classmethod
-    def sign_in(cls, *, project_url: str, publishable_key: str,
-                email: str, password: str) -> CloudWorldFoundry:
-        """Exchange Supabase email/password for a user session; keep it in memory only."""
-        if not project_url.startswith("https://"):
-            raise ValueError("project_url must use HTTPS")
-        endpoint = project_url.rstrip("/") + "/auth/v1/token?grant_type=password"
-        req = Request(endpoint, json.dumps({"email": email, "password": password}).encode(), {
-            "apikey": publishable_key, "Content-Type": "application/json",
-        }, method="POST")
-        try:
-            with urlopen(req, timeout=30) as response:
-                token = json.load(response)["access_token"]
-        except (HTTPError, URLError) as exc:
-            raise WorldFoundryError("Supabase sign-in failed") from exc
-        return cls(base_url=project_url.rstrip("/") + "/functions/v1/worldfoundry-api",
-                   api_key=token)
-
 
 class CloudTrainingManager(CloudResourceManager):
     def __init__(self, transport: HTTPTransport):
