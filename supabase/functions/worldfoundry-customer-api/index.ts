@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.95.0'
+import { validateEnvironment, validateScenario, applyAction, grade } from './runtime.ts'
 
 // This function is company infrastructure. Customers reach it through a
 // WorldFoundry-owned gateway, never through the provider URL directly.
@@ -212,6 +213,117 @@ Deno.serve(async (req: Request) => {
 
   const scope = req.method === 'GET' ? 'read' : 'write'
   if (!caller.scopes.includes(scope)) return error('Insufficient key scope', 403)
+
+
+  // Hosted declarative simulation runtime. This executes environment actions in
+  // the isolated tenant state. It never executes customer-provided code or
+  // writes to production connectors.
+  if (collection === 'simulation-sessions') {
+    if (req.method === 'POST' && !id) {
+      const { project_id, environment_id, scenario_id, seed = 0, max_steps = 30 } = body
+      if (typeof project_id !== 'string' || !(await ownedProject(caller, project_id)))
+        return error('Unknown project', 404)
+      if (typeof environment_id !== 'string' || typeof scenario_id !== 'string')
+        return error('environment_id and scenario_id are required')
+      if (!Number.isSafeInteger(seed) || !Number.isInteger(max_steps) ||
+          max_steps < 1 || max_steps > 1000) return error('Invalid seed or max_steps')
+      const { data: active, error: countError } = await admin.from('wf_sim_sessions')
+        .select('id').eq('project_id', project_id).eq('status', 'running').limit(100)
+      if (countError) return error('Could not check session limit', 503)
+      if ((active ?? []).length >= 100) return error('Active session limit reached', 429)
+      const { data: resources, error: resourceError } = await admin.from('wf_resources')
+        .select('id,kind,config').eq('project_id', project_id)
+        .in('id', [environment_id, scenario_id])
+      if (resourceError) return error('Could not load resources', 503)
+      const environment = resources?.find(r => r.id === environment_id && r.kind === 'environment')
+      const scenario = resources?.find(r => r.id === scenario_id && r.kind === 'scenario')
+      if (!environment || !scenario) return error('Environment or scenario not found', 404)
+      let envConfig, scenarioConfig
+      try {
+        envConfig = validateEnvironment(environment.config)
+        scenarioConfig = validateScenario(scenario.config)
+      } catch (exc) {
+        return error(exc instanceof Error ? exc.message : 'Invalid configuration', 400)
+      }
+      const { data, error: dbError } = await admin.from('wf_sim_sessions').insert({
+        project_id, environment_id, scenario_id, seed, max_steps,
+        state: envConfig.initial_state, initial_state: envConfig.initial_state,
+      }).select().single()
+      return dbError ? error('Could not start simulation', 503) :
+        reply({ ...data, instruction: envConfig.instruction ?? '',
+          actions: envConfig.actions, checks: scenarioConfig.checks }, 201)
+    }
+    if (req.method === 'GET' && !id) {
+      const projectId = new URL(req.url).searchParams.get('project_id')
+      if (!projectId || !(await ownedProject(caller, projectId)))
+        return error('Unknown project', 404)
+      const { data, error: dbError } = await admin.from('wf_sim_sessions')
+        .select('*').eq('project_id', projectId).order('created_at', { ascending: false }).limit(100)
+      return dbError ? error('Could not list simulations', 503) : reply({ data })
+    }
+    const { data: session, error: sessionError } = await admin.from('wf_sim_sessions')
+      .select('*').eq('id', id).maybeSingle()
+    if (sessionError) return error('Could not read simulation', 503)
+    if (!session || !(await ownedProject(caller, session.project_id)))
+      return error('Simulation not found', 404)
+    if (req.method === 'GET' && !subresource) return reply(session)
+    if (req.method === 'GET' && subresource === 'events') {
+      const { data, error: dbError } = await admin.from('wf_sim_events')
+        .select('version,call_id,action,parameters,observation,created_at')
+        .eq('session_id', id).eq('project_id', session.project_id).order('version').limit(1001)
+      return dbError ? error('Could not read events', 503) : reply({ data })
+    }
+    if (req.method === 'POST' && ['actions', 'submit'].includes(subresource)) {
+      if (session.status !== 'running') return error('Simulation already finished', 409)
+      if (typeof body.call_id !== 'string' || !/^[a-zA-Z0-9_-]{8,128}$/.test(body.call_id) ||
+          !Number.isInteger(body.expected_version) || body.expected_version < 0)
+        return error('call_id and expected_version required', 400)
+      if (body.expected_version !== session.version) return error('Stale version', 409)
+      let nextState = session.state, nextStatus = 'running', score = null
+      let checks = null, observation: Record<string, unknown> = {}
+      let action = '__submit__', parameters: Record<string, unknown> = {}
+      const { data: resources, error: loadError } = await admin.from('wf_resources')
+        .select('id,kind,config').eq('project_id', session.project_id)
+        .in('id', [session.environment_id, session.scenario_id])
+      if (loadError) return error('Could not load simulation definitions', 503)
+      const environment = resources?.find(r => r.id === session.environment_id && r.kind === 'environment')
+      const scenario = resources?.find(r => r.id === session.scenario_id && r.kind === 'scenario')
+      if (!environment || !scenario) return error('Simulation definitions unavailable', 503)
+      try {
+        const envConfig = validateEnvironment(environment.config)
+        const scenarioConfig = validateScenario(scenario.config)
+        if (subresource === 'actions') {
+          if (session.step >= session.max_steps) return error('Step limit reached', 409)
+          if (typeof body.action !== 'string' || body.action.length > 64)
+            return error('action required')
+          action = body.action
+          parameters = body.parameters ?? {}
+          const transition = applyAction(session.state, envConfig, scenarioConfig,
+            action, parameters, session.step + 1)
+          nextState = transition.state
+          observation = { result: transition.observation, events: transition.events }
+        } else {
+          const evaluation = grade(session.state, scenarioConfig)
+          nextStatus = evaluation.passed ? 'passed' : 'failed'
+          score = evaluation.score
+          checks = evaluation.checks
+          observation = evaluation
+        }
+      } catch (exc) {
+        return error(exc instanceof Error ? exc.message : 'Invalid action', 400)
+      }
+      const { data: committed, error: commitError } = await admin.rpc('wf_sim_commit', {
+        p_session_id: id, p_expected_version: body.expected_version, p_call_id: body.call_id,
+        p_action: action, p_parameters: parameters, p_next_state: nextState,
+        p_observation: observation, p_status: nextStatus, p_score: score, p_checks: checks,
+      })
+      if (commitError) return error('Could not commit simulation transition', 503)
+      if (committed?.error === 'conflict') return error('Stale version', 409)
+      if (committed?.error) return error('Simulation transition rejected', 409)
+      return reply({ ...committed.session, observation, duplicate: !!committed.duplicate })
+    }
+    return error('Not found', 404)
+  }
 
   if (collection === 'projects') {
     if (req.method === 'POST' && !id) {
