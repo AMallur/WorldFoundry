@@ -5,10 +5,10 @@ import json
 import tempfile
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
-from urllib.parse import quote
 from urllib.error import HTTPError, URLError
+from urllib.parse import quote
 from urllib.request import Request, urlopen
+from uuid import uuid4
 
 from .platform import WorldFoundryError
 
