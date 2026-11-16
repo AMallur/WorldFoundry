@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
 import { test } from 'node:test';
 import vm from 'node:vm';
+import { validateEnvironment, validateScenario, applyAction, grade } from
+  '../supabase/functions/worldfoundry-customer-api/runtime.ts';
 
 const gatewayToken = 'a'.repeat(64);
 const tables = {
@@ -70,13 +72,14 @@ const client = {
 
 let serve;
 const source = readFileSync(new URL('../supabase/functions/worldfoundry-customer-api/index.ts', import.meta.url), 'utf8')
-  .replace(/^import .+\n/, '');
+  .replace(/^import .+\n/gm, '');
 vm.runInNewContext(stripTypeScriptTypes(source), {
   createClient: () => client,
   Deno: { env: { get(name) { return ({ SUPABASE_URL: 'https://provider.test',
     SUPABASE_ANON_KEY: 'public-key', SUPABASE_SERVICE_ROLE_KEY: 'company-key' })[name]; } },
     serve(fn) { serve = fn; } },
   crypto: webcrypto, TextEncoder, URL, Date, Response, Request, Headers, Blob,
+  validateEnvironment, validateScenario, applyAction, grade,
 });
 
 function request(path, { method = 'GET', headers = {}, body } = {}) {
