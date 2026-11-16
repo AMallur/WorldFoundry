@@ -5,6 +5,8 @@ import json
 import tempfile
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
+from urllib.parse import quote
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -58,6 +60,49 @@ class CloudResourceManager:
         return self.create(**parameters)
 
 
+
+class CloudSimulationManager:
+    """Remote stateful simulations powered by WorldFoundry's hosted API.
+
+    Customer Python agents stay in their own process. Only declarative
+    environment state and validated actions run on the hosted service.
+    """
+
+    def __init__(self, transport: HTTPTransport):
+        self.transport = transport
+
+    def start(self, *, project_id: str, environment_id: str, scenario_id: str,
+              seed: int = 0, max_steps: int = 30) -> dict[str, Any]:
+        return self.transport.request("POST", "/v1/simulation-sessions", {
+            "project_id": project_id, "environment_id": environment_id,
+            "scenario_id": scenario_id, "seed": seed, "max_steps": max_steps,
+        })
+
+    def get(self, session_id: str) -> dict[str, Any]:
+        return self.transport.request("GET", f"/v1/simulation-sessions/{session_id}")
+
+    def list(self, project_id: str) -> dict[str, Any]:
+        return self.transport.request("GET", "/v1/simulation-sessions?project_id="
+                                      + quote(project_id, safe=""))
+
+    def act(self, session_id: str, action: str, *, expected_version: int,
+            parameters: dict[str, Any] | None = None,
+            call_id: str | None = None) -> dict[str, Any]:
+        return self.transport.request("POST", f"/v1/simulation-sessions/{session_id}/actions", {
+            "action": action, "parameters": parameters or {},
+            "expected_version": expected_version, "call_id": call_id or uuid4().hex,
+        })
+
+    def submit(self, session_id: str, *, expected_version: int,
+               call_id: str | None = None) -> dict[str, Any]:
+        return self.transport.request("POST", f"/v1/simulation-sessions/{session_id}/submit", {
+            "expected_version": expected_version, "call_id": call_id or uuid4().hex,
+        })
+
+    def events(self, session_id: str) -> dict[str, Any]:
+        return self.transport.request("GET", f"/v1/simulation-sessions/{session_id}/events")
+
+
 class CloudWorldFoundry:
     """WorldFoundry cloud client; provider details are never customer inputs."""
     DEFAULT_BASE_URL = "https://worldfoundry-api.vercel.app"
@@ -74,6 +119,7 @@ class CloudWorldFoundry:
         self.runs = CloudResourceManager(transport, "training-runs")
         self.training = CloudTrainingManager(transport)
         self.episodes = CloudResourceManager(transport, "episodes")
+        self.simulations = CloudSimulationManager(transport)
 
 class CloudTrainingManager(CloudResourceManager):
     def __init__(self, transport: HTTPTransport):
