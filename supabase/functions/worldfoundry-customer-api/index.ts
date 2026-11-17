@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.95.0'
 import { validateEnvironment, validateScenario, applyAction, grade } from './runtime.ts'
+import { handleManaged } from './managed.ts'
 
 // This function is company infrastructure. Customers reach it through a
 // WorldFoundry-owned gateway, never through the provider URL directly.
@@ -486,5 +487,9 @@ Deno.serve(async (req: Request) => {
       return dbError ? error('Could not list episodes', 500) : reply({ data: data.map(safeEpisode) })
     }
   }
+  const managed = await handleManaged(req, collection, id, subresource, body, {
+    admin, caller, ownedProject, reply, error,
+  })
+  if (managed) return managed
   return error('Not found', 404)
 })

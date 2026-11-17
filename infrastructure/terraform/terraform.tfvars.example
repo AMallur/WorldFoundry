@@ -1,0 +1,4 @@
+gcp_project_id = "YOUR_GCP_PROJECT"
+region = "us-central1"
+image = "us-central1-docker.pkg.dev/PROJECT/worldfoundry/worker@sha256:DIGEST"
+supabase_url = "https://YOUR_WORLD_FOUNDRY_SUPABASE_PROJECT.supabase.co"

@@ -49,6 +49,10 @@ connected to the SDK. Source is published at [AMallur/WorldFoundry](https://gith
 The GitHub release workflow verifies the package before publishing through PyPI Trusted
 Publishing.
 
+The managed platform introduces server-side scripted agents, persistent experience
+artifacts, job admission quotas, and optional Cloud Tasks and Stripe integrations.
+See [`docs/managed-platform.md`](docs/managed-platform.md) for the deployment boundaries.
+
 See [`docs/hosted-runtime.md`](docs/hosted-runtime.md) for hosted simulation examples,
 API limits, and security boundaries. Customer-owned Python agents execute on the customer's
 compute, not WorldFoundry-managed worker machines.
@@ -75,11 +79,11 @@ Python 3.11–3.13 interpreter can be used.
 
 ### Registry installation
 
-After the 0.4.0 release appears on the [PyPI project page](https://pypi.org/project/worldfoundry/):
+After the 0.5.0 release appears on the [PyPI project page](https://pypi.org/project/worldfoundry/):
 
 ```bash
-pip install worldfoundry==0.4.0
-uvx --from worldfoundry==0.4.0 worldfoundry --version
+pip install worldfoundry==0.5.0
+uvx --from worldfoundry==0.5.0 worldfoundry --version
 ```
 
 Homebrew distribution is planned. This command does not work until a formula is published:
