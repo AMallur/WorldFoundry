@@ -8,8 +8,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from .declarative import (DeclarativeEnvironment, apply_events, overlay,
-                          score_checks, seeded_scenario)
+from .declarative import (
+    DeclarativeEnvironment,
+    apply_events,
+    overlay,
+    score_checks,
+    seeded_scenario,
+)
 from .environments import EnvironmentError
 from .extensibility import TemplateRegistry
 from .models import Episode, StepResult, ValidationResult
