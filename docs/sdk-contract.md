@@ -32,7 +32,7 @@ are rejected explicitly. `report_path` is a local JSON file; no hosted report UR
 
 The lower-level `start`, `act`, `submit`, `export_trace`, REST, and CLI episode APIs remain usable.
 
-## Customer cloud contract under development
+## Hosted customer SDK contract (beta)
 
 Customer code will create a WorldFoundry client with a **WorldFoundry API key**:
 
@@ -44,7 +44,7 @@ wf = WorldFoundry(api_key=os.environ["WORLDFOUNDRY_API_KEY"])
 projects = wf.projects.list()
 ```
 
-Version 0.3.0 defaults to the WorldFoundry gateway. The gateway's health and
+Version 0.4.0 defaults to the WorldFoundry gateway. The gateway's health and
 unauthenticated rejection checks are live, but key issuance and authenticated
 tenant flows have not been verified with a live customer account. Do not use
 this example as a live onboarding instruction yet.
@@ -54,6 +54,10 @@ private traces, and key verifiers. Customer code must not need its provider
 URL, publishable key, service credential, or user access token. The full
 customer/company contract is in
 [`customer-company-boundary.md`](customer-company-boundary.md).
+
+The hosted declarative simulation API provides `wf.simulations.start`, `act`,
+`submit`, `get`, `list`, and `events`; see [`hosted-runtime.md`](hosted-runtime.md).
+It is not hosted execution of a developer's Python agent.
 
 Cloud `training.run_local(...)` will run simulations and user code on the
 customer's computer and sync results. It is not managed hosted Python
