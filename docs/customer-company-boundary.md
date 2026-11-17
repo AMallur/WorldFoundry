@@ -24,7 +24,7 @@ through the WorldFoundry gateway. The gateway is deployed at a WorldFoundry
 address; its live health route returns 200 and unauthenticated resource calls
 return 401. An opaque WorldFoundry browser session replaces the provider JWT.
 Authenticated account, key issuance, and cross-account flows still need a
-live customer-account verification. The `worldfoundry==0.5.0` SDK uses the
+live customer-account verification. The `worldfoundry==0.6.0` SDK uses the
 gateway by default when given a WorldFoundry API key; key issuance is an
 authenticated API operation, not an SDK operation.
 

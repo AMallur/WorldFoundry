@@ -18,6 +18,10 @@ Build agents anywhere. Train and test them in WorldFoundry.
 ## What works now
 
 - A Python SDK and `worldfoundry` / `wf` command-line interface.
+- Pluggable local Python environments with arbitrary actions, dynamic validators and seeded states.
+- JSON-configured environments that do not require writing a Python class.
+- Parameterized scenario generators, editable configurations, and isolated episode snapshots.
+- User-owned read-only connector snapshots and Python agent adapters.
 - Persistent, stateful episodes in a simulated support desk.
 - Declared action schemas and validation before actions mutate state.
 - Deterministic task grading with per-check results and a numeric score.
@@ -52,6 +56,7 @@ Publishing.
 The managed platform introduces server-side scripted agents, persistent experience
 artifacts, job admission quotas, and optional Cloud Tasks and Stripe integrations.
 See [`docs/managed-platform.md`](docs/managed-platform.md) for the deployment boundaries.
+Custom environment and scenario construction: [`docs/custom-environments.md`](docs/custom-environments.md).
 
 See [`docs/hosted-runtime.md`](docs/hosted-runtime.md) for hosted simulation examples,
 API limits, and security boundaries. Customer-owned Python agents execute on the customer's
@@ -79,11 +84,11 @@ Python 3.11–3.13 interpreter can be used.
 
 ### Registry installation
 
-After the 0.5.0 release appears on the [PyPI project page](https://pypi.org/project/worldfoundry/):
+After the 0.6.0 release appears on the [PyPI project page](https://pypi.org/project/worldfoundry/):
 
 ```bash
-pip install worldfoundry==0.5.0
-uvx --from worldfoundry==0.5.0 worldfoundry --version
+pip install worldfoundry==0.6.0
+uvx --from worldfoundry==0.6.0 worldfoundry --version
 ```
 
 Homebrew distribution is planned. This command does not work until a formula is published:
@@ -92,6 +97,27 @@ Homebrew distribution is planned. This command does not work until a formula is 
 # FUTURE: no Homebrew formula has been published
 brew install worldfoundry/tap/worldfoundry
 ```
+
+## Build your own environment
+
+You are not limited to the built-in support desk. Define a new environment in JSON
+without adding any WorldFoundry source code:
+
+```bash
+worldfoundry environments import examples/warehouse.environment.json
+```
+
+Or implement a Python environment protocol and load it explicitly:
+
+```bash
+worldfoundry --plugin examples.custom_counter_template environments list
+```
+
+You can also register custom scenario generators, agent adapters, and
+authorized data snapshot connectors in Python. See
+[`docs/custom-environments.md`](docs/custom-environments.md) for runnable examples.
+Python plugins run locally in the developer's process; hosted workers do not run
+arbitrary uploaded Python.
 
 ## One-minute CLI experience
 

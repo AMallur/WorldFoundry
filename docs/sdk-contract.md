@@ -22,10 +22,17 @@ run = wf.training.create(agent=registered, environment=env, episodes=10, seed=42
 print(run.summary, run.report_path)
 ```
 
+User-owned local environments now support Python plugin registration and
+JSON-declarative templates. Scenario generators can customize initial state,
+instructions, injected events and validation checks per seed. Agent adapters
+can implement the same (instruction, tools) contract, and named connectors
+can supply isolated snapshots of external data. See custom-environments.md.
+This is a local extension mechanism, not unrestricted hosted code execution.
+
 Local resource managers presently include `projects`, `environments`, `agents`, `scenarios`,
-`datasets`, `policies`, and `feedback`. Generic resource managers persist metadata, but only the
-built-in support desk environment, Python callable agents, and sequential batch execution are
-executable. A local agent registration's callable exists only in its Python process; the metadata
+`datasets`, `policies`, and `feedback`. Generic resource managers persist metadata, but the
+built-in support desk, customer-written Python environments, declarative templates,
+and sequential callable-agent execution are executable. A local agent registration's callable exists only in its Python process; the metadata
 record is persistent, but the handler must be registered again after restart. `max_steps` is
 enforced. `concurrency=1` is currently required. Advanced difficulty and remote endpoint agents
 are rejected explicitly. `report_path` is a local JSON file; no hosted report URL is fabricated.
@@ -44,7 +51,7 @@ wf = WorldFoundry(api_key=os.environ["WORLDFOUNDRY_API_KEY"])
 projects = wf.projects.list()
 ```
 
-Version 0.5.0 defaults to the WorldFoundry gateway. The gateway's health and
+Version 0.6.0 defaults to the WorldFoundry gateway. The gateway's health and
 unauthenticated rejection checks are live, but key issuance and authenticated
 tenant flows have not been verified with a live customer account. Do not use
 this example as a live onboarding instruction yet.
