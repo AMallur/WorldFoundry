@@ -1,6 +1,7 @@
 import copy
 
 import pytest
+
 from backend.connectors.base import JSONSnapshotConnector
 from runtime.scripted import ScenarioError, run_plan
 
