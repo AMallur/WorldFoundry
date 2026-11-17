@@ -9,6 +9,7 @@ from .engine import EpisodeEngine
 from .extensibility import ConnectorRegistry, load_local_plugins
 from .platform import (AgentManager, EnvironmentManager, Registry, ResourceManager,
                        ScenarioManager, TrainingManager)
+from .snapshots import SnapshotEnvironment
 
 if TYPE_CHECKING:
     from .cloud import CloudWorldFoundry
@@ -35,6 +36,10 @@ class WorldFoundry(EpisodeEngine):
         self.agents = AgentManager(registry)
         self.scenarios = ScenarioManager(registry)
         self.connectors = ConnectorRegistry()
+        self.environments.register_template(
+            "snapshot", lambda settings: SnapshotEnvironment(settings, self.connectors),
+            description=SnapshotEnvironment.description,
+        )
         self.datasets = ResourceManager(registry, "dataset")
         self.policies = ResourceManager(registry, "policy")
         self.feedback = ResourceManager(registry, "feedback")
