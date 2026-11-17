@@ -18,15 +18,17 @@ class Settings:
     checkout_cancel_url: str = ""
 
     @classmethod
-    def from_env(cls) -> Settings:
-        required = ("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "WF_WORKER_SHARED_TOKEN")
+    def from_env(cls, *, require_worker_token: bool = True) -> Settings:
+        required = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"]
+        if require_worker_token:
+            required.append("WF_WORKER_SHARED_TOKEN")
         missing = [key for key in required if not os.getenv(key)]
         if missing:
             raise RuntimeError("Missing backend secret configuration: " + ", ".join(missing))
         return cls(
             supabase_url=os.environ["SUPABASE_URL"],
             supabase_service_key=os.environ["SUPABASE_SERVICE_ROLE_KEY"],
-            worker_shared_token=os.environ["WF_WORKER_SHARED_TOKEN"],
+            worker_shared_token=os.getenv("WF_WORKER_SHARED_TOKEN", ""),
             billing_shared_token=os.getenv("WF_BILLING_SHARED_TOKEN", ""),
             stripe_secret_key=os.getenv("STRIPE_SECRET_KEY", ""),
             stripe_webhook_secret=os.getenv("STRIPE_WEBHOOK_SECRET", ""),
