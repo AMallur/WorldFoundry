@@ -12,3 +12,15 @@ build/
 work/
 *.jsonl
 
+
+# Backend credentials and IaC state
+.env
+.env.*
+!.env.example
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+*.pem
+*.key
