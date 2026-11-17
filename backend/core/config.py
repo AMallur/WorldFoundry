@@ -10,6 +10,7 @@ class Settings:
     supabase_url: str
     supabase_service_key: str
     worker_shared_token: str
+    billing_shared_token: str = ""
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
     stripe_price_id: str = ""
@@ -26,6 +27,7 @@ class Settings:
             supabase_url=os.environ["SUPABASE_URL"],
             supabase_service_key=os.environ["SUPABASE_SERVICE_ROLE_KEY"],
             worker_shared_token=os.environ["WF_WORKER_SHARED_TOKEN"],
+            billing_shared_token=os.getenv("WF_BILLING_SHARED_TOKEN", ""),
             stripe_secret_key=os.getenv("STRIPE_SECRET_KEY", ""),
             stripe_webhook_secret=os.getenv("STRIPE_WEBHOOK_SECRET", ""),
             stripe_price_id=os.getenv("STRIPE_PRICE_ID", ""),
