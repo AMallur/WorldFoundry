@@ -6,7 +6,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from .engine import EpisodeEngine
-from .platform import AgentManager, EnvironmentManager, Registry, ResourceManager, TrainingManager
+from .extensibility import ConnectorRegistry, load_local_plugins
+from .platform import (AgentManager, EnvironmentManager, Registry, ResourceManager,
+                       ScenarioManager, TrainingManager)
 
 if TYPE_CHECKING:
     from .cloud import CloudWorldFoundry
@@ -35,11 +37,14 @@ class WorldFoundry(EpisodeEngine):
         self.datasets = ResourceManager(registry, "dataset")
         self.policies = ResourceManager(registry, "policy")
         self.feedback = ResourceManager(registry, "feedback")
-        self.training = TrainingManager(self, self.agents, registry)
+        self.training = TrainingManager(self, self.agents, registry, self.scenarios)
 
     @classmethod
-    def local(cls, data_dir: str | Path | None = None) -> WorldFoundry:
-        return cls(data_dir)
+    def local(cls, data_dir: str | Path | None = None, *,
+              plugins: list[str] | None = None) -> WorldFoundry:
+        local = cls(data_dir)
+        load_local_plugins(local, plugins or [])
+        return local
 
     @classmethod
     def cloud(cls, *, api_key: str, base_url: str | None = None) -> CloudWorldFoundry:
