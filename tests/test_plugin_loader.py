@@ -3,7 +3,7 @@ import json
 import threading
 from http.server import ThreadingHTTPServer
 
-from worldfoundry import DeclarativeEnvironment, WorldFoundry
+from worldfoundry import WorldFoundry
 from worldfoundry.cli import main
 from worldfoundry.server import APIHandler
 
