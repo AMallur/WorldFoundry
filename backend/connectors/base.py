@@ -15,7 +15,7 @@ class JSONSnapshotConnector:
 
     def __init__(self, data: dict[str, Any]):
         if not isinstance(data, dict):
-            raise ValueError("Snapshot must be a JSON object")
+            raise TypeError("Snapshot must be a JSON object")
         self.data = copy.deepcopy(data)
 
     def discover(self) -> dict[str, Any]:
