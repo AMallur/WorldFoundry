@@ -274,10 +274,24 @@ Deno.serve(async (req: Request) => {
       return dbError ? error('Could not read events', 503) : reply({ data })
     }
     if (req.method === 'POST' && ['actions', 'submit'].includes(subresource)) {
-      if (session.status !== 'running') return error('Simulation already finished', 409)
       if (typeof body.call_id !== 'string' || !/^[a-zA-Z0-9_-]{8,128}$/.test(body.call_id) ||
           !Number.isInteger(body.expected_version) || body.expected_version < 0)
         return error('call_id and expected_version required', 400)
+      // Retry-safe: check a previously committed call before rejecting a
+      // terminal session or a stale version. Never apply the action twice.
+      const { data: earlier, error: priorError } = await admin.from('wf_sim_events')
+        .select('action,parameters,observation,version')
+        .eq('session_id', id).eq('call_id', body.call_id).maybeSingle()
+      if (priorError) return error('Could not check call ID', 503)
+      if (earlier) {
+        const attemptedAction = subresource === 'submit' ? '__submit__' : body.action
+        const attemptedParams = subresource === 'submit' ? {} : (body.parameters ?? {})
+        if (earlier.action !== attemptedAction ||
+            JSON.stringify(earlier.parameters) !== JSON.stringify(attemptedParams))
+          return error('call_id already used for another action', 409)
+        return reply({ ...session, observation: earlier.observation, duplicate: true })
+      }
+      if (session.status !== 'running') return error('Simulation already finished', 409)
       if (body.expected_version !== session.version) return error('Stale version', 409)
       let nextState = session.state, nextStatus = 'running', score = null
       let checks = null, observation: Record<string, unknown> = {}
