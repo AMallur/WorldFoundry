@@ -1,3 +1,4 @@
+# ruff: noqa: I001 -- test imports span separate project-root packages.
 import copy
 
 import pytest
