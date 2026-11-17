@@ -8,7 +8,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from .declarative import DeclarativeEnvironment, apply_events, overlay, score_checks
+from .declarative import (DeclarativeEnvironment, apply_events, overlay,
+                          score_checks, seeded_scenario)
 from .environments import EnvironmentError
 from .extensibility import TemplateRegistry
 from .models import Episode, StepResult, ValidationResult
@@ -69,7 +70,7 @@ class EpisodeEngine:
               seed: int = 0, *, scenario: dict[str, Any] | None = None) -> Episode:
         config = self._environment_config(environment)
         env = self._make_environment(config)
-        scenario_config = copy.deepcopy(scenario or {})
+        scenario_config = seeded_scenario(copy.deepcopy(scenario or {}), seed)
         if not isinstance(scenario_config, dict):
             raise EnvironmentError("Scenario must be a JSON object")
         task_name = task or scenario_config.get("task") or env.tasks[0]

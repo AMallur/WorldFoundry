@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import importlib
 import re
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from typing import Any, Protocol, runtime_checkable
 
 from .environments import EnvironmentError, SupportDeskEnvironment

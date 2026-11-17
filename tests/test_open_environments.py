@@ -1,8 +1,7 @@
 """Custom Python templates, declarative scenarios, and connector snapshots."""
 import json
 
-from worldfoundry import (ActionSpec, ValidationCheck, ValidationResult,
-                          WorldFoundry)
+from worldfoundry import ActionSpec, ValidationCheck, ValidationResult, WorldFoundry
 from worldfoundry.cli import main
 
 

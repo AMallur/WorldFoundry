@@ -7,8 +7,14 @@ from typing import TYPE_CHECKING
 
 from .engine import EpisodeEngine
 from .extensibility import ConnectorRegistry, load_local_plugins
-from .platform import (AgentManager, EnvironmentManager, Registry, ResourceManager,
-                       ScenarioManager, TrainingManager)
+from .platform import (
+    AgentManager,
+    EnvironmentManager,
+    Registry,
+    ResourceManager,
+    ScenarioManager,
+    TrainingManager,
+)
 from .snapshots import SnapshotEnvironment
 
 if TYPE_CHECKING:

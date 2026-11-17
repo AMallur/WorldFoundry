@@ -151,10 +151,16 @@ def score_checks(state: dict[str, Any], checks: list[dict[str, Any]]) -> Validat
         elif op in {"gt", "gte", "lt", "lte"}:
             valid = all(isinstance(v, (int, float)) and not isinstance(v, bool)
                         for v in (actual, expected))
-            passed = valid and {"gt": lambda: actual > expected,
-                                "gte": lambda: actual >= expected,
-                                "lt": lambda: actual < expected,
-                                "lte": lambda: actual <= expected}[op]()
+            if not valid:
+                passed = False
+            elif op == "gt":
+                passed = actual > expected
+            elif op == "gte":
+                passed = actual >= expected
+            elif op == "lt":
+                passed = actual < expected
+            else:
+                passed = actual <= expected
         else:
             raise EnvironmentError(f"Unsupported check operator: {op}")
         items.append(ValidationCheck(check["name"], bool(passed),
