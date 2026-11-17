@@ -10,6 +10,7 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 from uuid import uuid4
 
+from .managed import CloudArtifacts, CloudBilling, CloudConnectors, CloudManagedRuns
 from .platform import WorldFoundryError
 
 
@@ -120,8 +121,17 @@ class CloudWorldFoundry:
         self.training = CloudTrainingManager(transport)
         self.episodes = CloudResourceManager(transport, "episodes")
         self.simulations = CloudSimulationManager(transport)
+        self.managed_runs = CloudManagedRuns(transport)
+        self.artifacts = CloudArtifacts(transport)
+        self.billing = CloudBilling(transport)
+        self.connectors = CloudConnectors(transport)
 
 class CloudTrainingManager(CloudResourceManager):
+    def run_managed(self, **parameters: Any) -> dict[str, Any]:
+        """Execute a bounded plan on a hosted environment."""
+        return CloudManagedRuns(self.transport).create(**parameters)
+
+
     def __init__(self, transport: HTTPTransport):
         super().__init__(transport, "training-runs")
 
