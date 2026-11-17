@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -21,17 +22,24 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="worldfoundry", description="Local training environments for AI agents")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("--home", help="State directory (default: $WORLDFOUNDRY_HOME or ~/.worldfoundry)")
+    parser.add_argument("--plugin", action="append", default=[],
+                        help="Import a trusted local Python plugin module with register(wf). "
+                             "Repeat for more modules.")
     commands = parser.add_subparsers(dest="command", required=True)
 
     environments = commands.add_parser("environments", help="Discover environments")
-    environments.add_subparsers(dest="subcommand", required=True).add_parser("list")
+    env_commands = environments.add_subparsers(dest="subcommand", required=True)
+    env_commands.add_parser("list")
+    env_import = env_commands.add_parser("import", help="Register a JSON template configuration")
+    env_import.add_argument("file")
 
     episodes = commands.add_parser("episodes", help="Run episodes")
     episode_commands = episodes.add_subparsers(dest="subcommand", required=True)
     start = episode_commands.add_parser("start")
     start.add_argument("environment")
-    start.add_argument("--task", default="incident-triage")
+    start.add_argument("--task", default=None)
     start.add_argument("--seed", type=int, default=0)
+    start.add_argument("--scenario-file", help="Optional JSON scenario configuration")
     episode_commands.add_parser("list")
     inspect = episode_commands.add_parser("inspect")
     inspect.add_argument("episode_id")
@@ -56,15 +64,25 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    local_modules = [module.strip() for module in os.getenv("WORLDFOUNDRY_PLUGINS", "").split(",")
+                     if module.strip()]
+    modules = [*local_modules, *args.plugin]
     if args.command == "serve":
-        serve(args.host, args.port, args.home)
+        serve(args.host, args.port, args.home, plugins=modules)
         return 0
-    client = WorldFoundry(args.home)
+    client = WorldFoundry.local(args.home, plugins=modules)
     try:
-        if args.command == "environments":
+        if args.command == "environments" and args.subcommand == "list":
             _print({"data": client.environment_catalog()})
+        elif args.command == "environments" and args.subcommand == "import":
+            from dataclasses import asdict
+
+            _print(asdict(client.environments.from_file(args.file)))
         elif args.command == "episodes" and args.subcommand == "start":
-            _print(client.start(args.environment, args.task, args.seed).to_dict())
+            scenario = (json.loads(Path(args.scenario_file).read_text(encoding="utf-8"))
+                        if args.scenario_file else None)
+            _print(client.start(args.environment, args.task, args.seed,
+                                scenario=scenario).to_dict())
         elif args.command == "episodes" and args.subcommand == "list":
             _print({"data": [ep.to_dict(include_state=False) for ep in client.list_episodes()]})
         elif args.command == "episodes" and args.subcommand == "inspect":
