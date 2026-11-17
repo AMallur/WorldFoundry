@@ -3,6 +3,9 @@ import {randomUUID} from 'node:crypto'
 import {test} from 'node:test'
 import {handleManaged} from '../supabase/functions/worldfoundry-customer-api/managed.ts'
 
+// The Edge Function normally supplies Deno.env; CI deliberately leaves services off.
+globalThis.Deno = {env:{get:()=>undefined}}
+
 const IDS = {
   one:'11111111-1111-4111-8111-111111111111',
   two:'22222222-2222-4222-8222-222222222222',
