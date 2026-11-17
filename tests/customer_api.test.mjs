@@ -209,6 +209,14 @@ test('hosted simulation API persists state and blocks cross-tenant access', asyn
   assert.equal(action.status, 200, await action.clone().text());
   const after = await action.json();
   assert.equal(after.state.tickets.T1.status, 'closed');
+  const repeated = await request('simulation-sessions/' + session.id + '/actions', {
+    method: 'POST', headers: auth,
+    body: { action: 'resolve', expected_version: 0, call_id: 'resolve-001',
+      parameters: { ticket_id: 'T1' } },
+  });
+  assert.equal(repeated.status, 200);
+  assert.equal((await repeated.json()).duplicate, true);
+  assert.equal(tables.wf_sim_events.length, 1);
   const conflicting = await request('simulation-sessions/' + session.id + '/actions', {
     method: 'POST', headers: auth,
     body: { action: 'resolve', expected_version: 0, call_id: 'resolve-002',
