@@ -1,0 +1,81 @@
+"""Private WorldFoundry worker and billing endpoints for Cloud Run."""
+from __future__ import annotations
+
+import hmac
+from uuid import UUID
+
+from fastapi import FastAPI, Header, HTTPException, Request
+
+from backend.billing.stripe_service import create_checkout, process_webhook
+from backend.core.config import Settings
+from backend.core.supabase import SupabaseStore
+from backend.workers.execute import execute_run
+
+app = FastAPI(title="WorldFoundry private services", docs_url=None, redoc_url=None)
+
+
+def backend() -> tuple[Settings, SupabaseStore]:
+    try:
+        config = Settings.from_env()
+        return config, SupabaseStore(config.supabase_url, config.supabase_service_key)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail="Service not configured") from exc
+
+
+def check_internal(provided: str | None, expected: str):
+    if not provided or not expected or not hmac.compare_digest(provided, expected):
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
+@app.post("/tasks/execute")
+async def execute_task(request: Request,
+                       x_wf_worker_token: str | None = Header(default=None)):
+    config, store = backend()
+    check_internal(x_wf_worker_token, config.worker_shared_token)
+    # Cloud Run MUST also require a valid IAM/OIDC identity from Cloud Tasks.
+    try:
+        payload = await request.json()
+        run_id = str(UUID(payload["run_id"]))
+    except (ValueError, KeyError, TypeError) as exc:
+        raise HTTPException(status_code=400, detail="Invalid task payload") from exc
+    return execute_run(store, run_id)
+
+
+@app.post("/billing/checkout")
+async def checkout(request: Request,
+                   x_wf_internal_token: str | None = Header(default=None)):
+    config, store = backend()
+    import os
+
+    check_internal(x_wf_internal_token, os.getenv("WF_BILLING_SHARED_TOKEN", ""))
+    try:
+        body = await request.json()
+        project_id = str(UUID(body["project_id"]))
+        owner_id = str(UUID(body["owner_id"]))
+    except (ValueError, KeyError, TypeError) as exc:
+        raise HTTPException(status_code=400, detail="Invalid project") from exc
+    try:
+        return {"url": create_checkout(store, config, project_id, owner_id)}
+    except PermissionError as exc:
+        raise HTTPException(status_code=404, detail="Unknown project") from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail="Billing unavailable") from exc
+
+
+@app.post("/billing/stripe/webhook")
+async def webhook(request: Request, stripe_signature: str | None = Header(default=None)):
+    config, store = backend()
+    if not stripe_signature:
+        raise HTTPException(status_code=400, detail="Missing signature")
+    try:
+        return process_webhook(store, config, await request.body(), stripe_signature)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail="Billing unavailable") from exc
+    except Exception as exc:
+        # Never expose or log raw event contents.
+        raise HTTPException(status_code=400, detail="Webhook rejected") from exc
