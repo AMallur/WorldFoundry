@@ -55,7 +55,7 @@ class TemplateRegistry:
             raise EnvironmentError("Template names must be lowercase letters, digits, - or _")
         if name in self._providers and not replace:
             raise EnvironmentError(f"Template already registered: {name}")
-        if isinstance(factory, EnvironmentPlugin):
+        if isinstance(factory, EnvironmentPlugin) and not isinstance(factory, type):
             # The caller owns the instance and must keep execution state in
             # the episode's state dict, not on this shared plugin object.
             provider = lambda settings: factory
