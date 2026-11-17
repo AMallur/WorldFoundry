@@ -4,12 +4,24 @@ import { readFileSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
 import { test } from 'node:test';
 import vm from 'node:vm';
+import { validateEnvironment, validateScenario, applyAction, grade } from
+  '../supabase/functions/worldfoundry-customer-api/runtime.ts';
 
 const gatewayToken = 'a'.repeat(64);
 const tables = {
   wf_gateway_config: [{ id: true, secret_hash: createHash('sha256').update(gatewayToken).digest('hex') }],
   wf_api_keys: [],
   wf_api_key_activity: [],
+  wf_sim_sessions: [],
+  wf_sim_events: [],
+  wf_resources: [
+    { id: 'env-one', project_id: 'project-one', kind: 'environment',
+      config: { initial_state: { tickets: { T1: { status: 'open' } } },
+        actions: { resolve: { operation: 'set', path: 'tickets.$ticket_id.status',
+          value: 'closed', parameters: { ticket_id: { type: 'string' } } } } } },
+    { id: 'scenario-one', project_id: 'project-one', kind: 'scenario',
+      config: { checks: [{ name: 'resolved', path: 'tickets.T1.status', equals: 'closed' }] } },
+  ],
   wf_sessions: [],
   wf_projects: [
     { id: 'project-one', owner_id: 'user-one', name: 'One' },
@@ -18,7 +30,7 @@ const tables = {
 };
 
 class Query {
-  constructor(table) { this.table = table; this.filters = []; this.fields = '*'; this.operation = 'select'; }
+  constructor(table, name) { this.table = table; this.name = name; this.filters = []; this.fields = '*'; this.operation = 'select'; }
   select(fields = '*') { this.fields = fields; return this; }
   eq(field, value) { this.filters.push(row => row[field] === value); return this; }
   is(field, value) { this.filters.push(row => row[field] === value); return this; }
@@ -32,6 +44,9 @@ class Query {
     if (this.operation === 'insert') {
       const row = { id: `key-${this.table.length + 1}`, created_at: new Date().toISOString(),
         revoked_at: null, last_used_at: null, ...this.value };
+      if (this.name === 'wf_sim_sessions') {
+        Object.assign(row, { status: 'running', version: 0, step: 0, score: null });
+      }
       this.table.push(row);
       rows = [row];
     } else {
@@ -47,8 +62,25 @@ class Query {
 }
 
 const client = {
-  from(table) { return new Query(tables[table] ?? []); },
+  from(table) { return new Query(tables[table] ?? [], table); },
   async rpc(name, { p_key_id, p_owner_id, p_method, p_route }) {
+    if (name === 'wf_sim_commit') {
+      const args = arguments[1];
+      const session = tables.wf_sim_sessions.find(row => row.id === args.p_session_id);
+      if (!session) return { data: { error: 'not_found' }, error: null };
+      if (session.version !== args.p_expected_version)
+        return { data: { error: 'conflict' }, error: null };
+      session.version += 1;
+      if (args.p_action !== '__submit__') session.step += 1;
+      session.state = args.p_next_state;
+      session.status = args.p_status;
+      session.score = args.p_score;
+      session.checks = args.p_checks;
+      tables.wf_sim_events.push({ session_id: session.id, project_id: session.project_id,
+        version: session.version, call_id: args.p_call_id, action: args.p_action,
+        parameters: args.p_parameters, observation: args.p_observation });
+      return { data: { session }, error: null };
+    }
     assert.equal(name, 'wf_record_api_key_use');
     const key = tables.wf_api_keys.find(row => row.id === p_key_id && row.owner_id === p_owner_id);
     if (!key || key.revoked_at) return { data: false, error: null };
@@ -70,13 +102,14 @@ const client = {
 
 let serve;
 const source = readFileSync(new URL('../supabase/functions/worldfoundry-customer-api/index.ts', import.meta.url), 'utf8')
-  .replace(/^import .+\n/, '');
+  .replace(/^import .+\n/gm, '');
 vm.runInNewContext(stripTypeScriptTypes(source), {
   createClient: () => client,
   Deno: { env: { get(name) { return ({ SUPABASE_URL: 'https://provider.test',
     SUPABASE_ANON_KEY: 'public-key', SUPABASE_SERVICE_ROLE_KEY: 'company-key' })[name]; } },
     serve(fn) { serve = fn; } },
   crypto: webcrypto, TextEncoder, URL, Date, Response, Request, Headers, Blob,
+  validateEnvironment, validateScenario, applyAction, grade,
 });
 
 function request(path, { method = 'GET', headers = {}, body } = {}) {
@@ -149,4 +182,62 @@ test('WorldFoundry gateway, key issuance, tenant isolation, and revocation', asy
   assert.ok(tables.wf_sessions[0].revoked_at);
   const sessionAfterLogout = await request('keys', { headers });
   assert.equal(sessionAfterLogout.status, 401);
+});
+
+test('hosted simulation API persists state and blocks cross-tenant access', async () => {
+  const token = 'wf_live_' + 'b'.repeat(64);
+  tables.wf_api_keys.push({
+    id: 'sim-key', owner_id: 'user-one', project_id: 'project-one',
+    key_hash: createHash('sha256').update(token).digest('hex'),
+    scopes: ['read', 'write'], revoked_at: null, expires_at: null,
+  });
+  const auth = { authorization: 'Bearer ' + token };
+  const started = await request('simulation-sessions', {
+    method: 'POST', headers: auth,
+    body: { project_id: 'project-one', environment_id: 'env-one',
+      scenario_id: 'scenario-one', max_steps: 10 },
+  });
+  assert.equal(started.status, 201, await started.clone().text());
+  const session = await started.json();
+  assert.equal(session.status, 'running');
+  assert.equal(session.version, 0);
+  const action = await request('simulation-sessions/' + session.id + '/actions', {
+    method: 'POST', headers: auth,
+    body: { action: 'resolve', expected_version: 0, call_id: 'resolve-001',
+      parameters: { ticket_id: 'T1' } },
+  });
+  assert.equal(action.status, 200, await action.clone().text());
+  const after = await action.json();
+  assert.equal(after.state.tickets.T1.status, 'closed');
+  const repeated = await request('simulation-sessions/' + session.id + '/actions', {
+    method: 'POST', headers: auth,
+    body: { action: 'resolve', expected_version: 0, call_id: 'resolve-001',
+      parameters: { ticket_id: 'T1' } },
+  });
+  assert.equal(repeated.status, 200);
+  assert.equal((await repeated.json()).duplicate, true);
+  assert.equal(tables.wf_sim_events.length, 1);
+  const conflicting = await request('simulation-sessions/' + session.id + '/actions', {
+    method: 'POST', headers: auth,
+    body: { action: 'resolve', expected_version: 0, call_id: 'resolve-002',
+      parameters: { ticket_id: 'T1' } },
+  });
+  assert.equal(conflicting.status, 409);
+  const submitted = await request('simulation-sessions/' + session.id + '/submit', {
+    method: 'POST', headers: auth,
+    body: { expected_version: 1, call_id: 'submit-001' },
+  });
+  assert.equal(submitted.status, 200, await submitted.clone().text());
+  const finalState = await submitted.json();
+  assert.equal(finalState.status, 'passed');
+  assert.equal(finalState.score, 1);
+  const history = await request('simulation-sessions/' + session.id + '/events', { headers: auth });
+  assert.equal(history.status, 200);
+  assert.equal((await history.json()).data.length, 2);
+  const other = await request('simulation-sessions', {
+    method: 'POST', headers: auth,
+    body: { project_id: 'project-two', environment_id: 'env-one',
+      scenario_id: 'scenario-one' },
+  });
+  assert.equal(other.status, 404);
 });
