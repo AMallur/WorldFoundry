@@ -10,8 +10,10 @@ Build agents anywhere. Train and test them in WorldFoundry.
 
 > **Current status:** `worldfoundry` is published on
 > [PyPI](https://pypi.org/project/worldfoundry/). Local episodes work without a cloud account.
-> Cloud account and key flows are in beta and have not completed live customer onboarding
-> verification. The Homebrew formula is planned and is not published.
+> A hosted declarative simulation runtime is deployed with persistent Supabase state,
+> authenticated API access, and event history. Live customer onboarding and production
+> isolation verification remain outstanding. Managed Python execution and billing are not
+> available. The Homebrew formula is not published.
 
 ## What works now
 
@@ -24,6 +26,8 @@ Build agents anywhere. Train and test them in WorldFoundry.
 - A dependency-free REST API usable with `curl`.
 - Framework-neutral callables ready to wrap as Google ADK function tools.
 - Local SDK resource registration and sequential callable-agent batch runs with JSON reports.
+- Hosted declarative environment sessions and scenario evaluation through the WorldFoundry API.
+- Stateful action calls, injected scenario events, optimistic version checks, and event history.
 
 This is trajectory and evaluation infrastructure. It does **not** perform reinforcement learning,
 fine-tuning, reward-model training, or model-weight updates.
@@ -36,13 +40,18 @@ The WorldFoundry key lifecycle and tracking contract is in
 The company backend schema, private trace storage, and an internal API are deployed.
 The old provider-token prototype endpoint is retired. The customer gateway is deployed, but
 WorldFoundry account and API key flows still need live account verification before customer
-onboarding. Managed Python workers and customer billing are not deployed.
+onboarding. Hosted environment execution is deployed, but managed Python workers and
+customer billing are not deployed.
 
 The cloud usage ledger records client-reported episodes for operational visibility; it is not a
 billing system. Stripe metering, verified managed-compute usage, and payment webhooks are not
 connected to the SDK. Source is published at [AMallur/WorldFoundry](https://github.com/AMallur/WorldFoundry).
 The GitHub release workflow verifies the package before publishing through PyPI Trusted
 Publishing.
+
+See [`docs/hosted-runtime.md`](docs/hosted-runtime.md) for hosted simulation examples,
+API limits, and security boundaries. Customer-owned Python agents execute on the customer's
+compute, not WorldFoundry-managed worker machines.
 
 ## Install — verified local
 
@@ -66,11 +75,11 @@ Python 3.11–3.13 interpreter can be used.
 
 ### Registry installation
 
-After version 0.3.0 appears on the [PyPI project page](https://pypi.org/project/worldfoundry/):
+After the 0.4.0 release appears on the [PyPI project page](https://pypi.org/project/worldfoundry/):
 
 ```bash
-pip install worldfoundry==0.3.0
-uvx --from worldfoundry==0.3.0 worldfoundry --version
+pip install worldfoundry==0.4.0
+uvx --from worldfoundry==0.4.0 worldfoundry --version
 ```
 
 Homebrew distribution is planned. This command does not work until a formula is published:
