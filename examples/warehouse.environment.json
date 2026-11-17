@@ -1,0 +1,39 @@
+{
+  "name": "Warehouse Exceptions",
+  "template": "declarative",
+  "config": {
+    "task": "dispatch",
+    "instruction": "Inspect order ORD1, verify inventory, ship, and write an audit note.",
+    "initial_state": {
+      "orders": {
+        "ORD1": {
+          "status": "pending",
+          "verified": false,
+          "notes": []
+        }
+      }
+    },
+    "actions": {
+      "inspect": {"operation": "read", "path": "orders.ORD1"},
+      "verify": {"operation": "set", "path": "orders.ORD1.verified", "value": true},
+      "ship": {"operation": "set", "path": "orders.ORD1.status", "value": "shipped"},
+      "note": {
+        "operation": "append",
+        "path": "orders.ORD1.notes",
+        "from_param": "message",
+        "parameters": {
+          "message": {"type": "string"}
+        }
+      }
+    },
+    "checks": [
+      {"name": "verified", "path": "orders.ORD1.verified", "equals": true},
+      {"name": "shipped", "path": "orders.ORD1.status", "equals": "shipped"},
+      {"name": "audit", "path": "orders.ORD1.notes", "equals": ["checked"]}
+    ],
+    "variants": [
+      {"orders": {"ORD1": {"status": "pending"}}},
+      {"orders": {"ORD1": {"status": "held"}}}
+    ]
+  }
+}

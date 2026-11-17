@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import asdict
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import urlparse
@@ -70,11 +71,21 @@ class APIHandler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         try:
             body = self._body()
+            if path == "/v1/environments":
+                if not isinstance(body.get("config"), dict):
+                    raise ValueError("Environment creation requires a config JSON object")
+                resource = self.client.environments.create(
+                    template=body.get("template", "declarative"),
+                    name=body.get("name"), config=body["config"],
+                )
+                self._send(201, asdict(resource))
+                return
             if path == "/v1/episodes":
                 episode = self.client.start(
                     body.get("environment", "support-desk"),
-                    body.get("task", "incident-triage"),
+                    body.get("task"),
                     int(body.get("seed", 0)),
+                    scenario=body.get("scenario"),
                 )
                 self._send(201, episode.to_dict())
                 return
@@ -99,8 +110,10 @@ class APIHandler(BaseHTTPRequestHandler):
             self._send(404, {"error": "episode_not_found", "message": str(exc.args[0])})
 
 
-def serve(host: str = "127.0.0.1", port: int = 8787, home: str | None = None) -> None:
-    handler = type("BoundAPIHandler", (APIHandler,), {"client": WorldFoundry(home)})
+def serve(host: str = "127.0.0.1", port: int = 8787, home: str | None = None,
+          plugins: list[str] | None = None) -> None:
+    handler = type("BoundAPIHandler", (APIHandler,),
+                   {"client": WorldFoundry.local(home, plugins=plugins)})
     httpd = ThreadingHTTPServer((host, port), handler)
     print(f"WorldFoundry API listening on http://{host}:{port}")
     try:

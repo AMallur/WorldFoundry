@@ -48,6 +48,8 @@ class Episode:
     status: str
     state: dict[str, Any]
     trace: list[dict[str, Any]] = field(default_factory=list)
+    environment_config: dict[str, Any] = field(default_factory=dict)
+    scenario: dict[str, Any] = field(default_factory=dict)
     created_at: str = ""
     updated_at: str = ""
     validation: ValidationResult | None = None
@@ -63,6 +65,8 @@ class Episode:
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "validation": self.validation.to_dict() if self.validation else None,
+            "environment_config": self.environment_config,
+            "scenario": self.scenario,
         }
         if include_state:
             data["state"] = self.state

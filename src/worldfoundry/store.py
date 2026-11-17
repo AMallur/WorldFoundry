@@ -46,6 +46,8 @@ class LocalStore:
             status=data["status"],
             state=data["state"],
             trace=data.get("trace", []),
+            environment_config=data.get("environment_config", {}),
+            scenario=data.get("scenario", {}),
             created_at=data["created_at"],
             updated_at=data["updated_at"],
             validation=validation,
