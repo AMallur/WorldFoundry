@@ -34,7 +34,7 @@ function page(query: URLSearchParams): {limit:number,offset:number}|null {
   if (!/^\d+$/.test(rawLimit)|| !/^\d+$/.test(rawOffset))return null
   const limit=Number(rawLimit), offset=Number(rawOffset)
   return Number.isSafeInteger(limit) && limit>=1 && limit<=100 &&
-    Number.isSafeInteger(offset) && offset>=0 && offset<=1000000 ?
+    Number.isSafeInteger(offset) && offset>=0 && offset<=Number.MAX_SAFE_INTEGER ?
     {limit,offset}:null
 }
 function merge(target: Row, overrides: Row, depth=0): Row {
@@ -131,7 +131,7 @@ export async function handleResources(
 
   if(!id&&req.method==='GET'){
     const paging=page(args)
-    if(!paging)return error('limit must be 1..100, offset must be 0..1000000')
+    if(!paging)return error('limit must be 1..100, offset must be a nonnegative safe integer')
     const projectId=args.get('project_id')
     let allowed:string[]
     if(projectId){
