@@ -61,8 +61,8 @@ class CloudResourceManager:
     def list(self, project_id: str | None = None, *, limit: int = 50,
              offset: int = 0, include_archived: bool = False) -> dict[str, Any]:
         """Fetch up to 100 records; use next_offset for complete pagination."""
-        if not 1 <= limit <= 100 or not 0 <= offset <= 1_000_000:
-            raise ValueError("limit must be 1..100 and offset 0..1000000")
+        if not 1 <= limit <= 100 or not 0 <= offset <= 9_007_199_254_740_991:
+            raise ValueError("limit must be 1..100 and offset must be a nonnegative safe integer")
         args = [f"limit={limit}", f"offset={offset}"]
         if project_id is not None:
             args.append("project_id=" + quote(project_id, safe=""))
