@@ -57,6 +57,7 @@ The managed platform introduces server-side scripted agents, persistent experien
 artifacts, job admission quotas, and optional Cloud Tasks and Stripe integrations.
 See [`docs/managed-platform.md`](docs/managed-platform.md) for the deployment boundaries.
 Custom environment and scenario construction: [`docs/custom-environments.md`](docs/custom-environments.md).
+Persist unlimited user-owned definitions in Supabase through [`docs/resource-library.md`](docs/resource-library.md).
 
 See [`docs/hosted-runtime.md`](docs/hosted-runtime.md) for hosted simulation examples,
 API limits, and security boundaries. Customer-owned Python agents execute on the customer's
@@ -84,11 +85,11 @@ Python 3.11–3.13 interpreter can be used.
 
 ### Registry installation
 
-After the 0.6.0 release appears on the [PyPI project page](https://pypi.org/project/worldfoundry/):
+After the 0.7.0 release appears on the [PyPI project page](https://pypi.org/project/worldfoundry/):
 
 ```bash
-pip install worldfoundry==0.6.0
-uvx --from worldfoundry==0.6.0 worldfoundry --version
+pip install worldfoundry==0.7.0
+uvx --from worldfoundry==0.7.0 worldfoundry --version
 ```
 
 Homebrew distribution is planned. This command does not work until a formula is published:
@@ -97,6 +98,32 @@ Homebrew distribution is planned. This command does not work until a formula is 
 # FUTURE: no Homebrew formula has been published
 brew install worldfoundry/tap/worldfoundry
 ```
+
+## Save and access your own environments in Supabase
+
+WorldFoundry now provides persistent, project-scoped templates and resources
+with version histories and pagination. The API key is a WorldFoundry key,
+never a Supabase administrative credential.
+
+    wf = WorldFoundry.cloud(api_key="wf_live_...")
+    project = wf.projects.create(name="Operations lab")
+    template = wf.templates.create(
+        project_id=project["id"], name="Warehouse",
+        config={"initial_state": {"order": {"status": "pending"}},
+                "actions": {"ship": {"operation": "set",
+                                     "path": "order.status", "value": "shipped"}}}
+    )
+    environment = wf.environments.from_template(
+        project_id=project["id"], name="Warehouse A",
+        template_id=template["id"]
+    )
+    for item in wf.environments.iter_all(project["id"]):
+        print(item["id"], item["version"])
+
+The WorldFoundry backend owns Supabase. Customer configurations are stored
+centrally and can be retrieved or edited from different machines with
+authorized API keys. Cloud compute remains separate and is not enabled by
+resource registration. See docs/resource-library.md.
 
 ## Build your own environment
 
