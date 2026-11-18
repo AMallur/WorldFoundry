@@ -77,8 +77,7 @@ class CloudResourceManager:
         while True:
             page = self.list(project_id, limit=page_size, offset=offset,
                              include_archived=include_archived)
-            for resource in page.get("data", []):
-                yield resource
+            yield from page.get("data", [])
             offset = page.get("next_offset")
             if offset is None:
                 break
