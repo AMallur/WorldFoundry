@@ -1,6 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.95.0'
 import { validateEnvironment, validateScenario, applyAction, grade } from './runtime.ts'
 import { handleManaged } from './managed.ts'
+import { handleResources } from './resources.ts'
 
 // This function is company infrastructure. Customers reach it through a
 // WorldFoundry-owned gateway, never through the provider URL directly.
@@ -108,6 +109,7 @@ Deno.serve(async (req: Request) => {
   const collection = parts[v1 + 1]
   const id = parts[v1 + 2]
   const subresource = parts[v1 + 3]
+  const detail = parts[v1 + 4]
 
   if (collection === 'health' && req.method === 'GET') return reply({ status: 'ok' })
   let body: Record<string, any> = {}
@@ -233,12 +235,13 @@ Deno.serve(async (req: Request) => {
       if (countError) return error('Could not check session limit', 503)
       if ((active ?? []).length >= 100) return error('Active session limit reached', 429)
       const { data: resources, error: resourceError } = await admin.from('wf_resources')
-        .select('id,kind,config').eq('project_id', project_id)
+        .select('id,kind,config,version,archived_at').eq('project_id', project_id)
         .in('id', [environment_id, scenario_id])
       if (resourceError) return error('Could not load resources', 503)
       const environment = resources?.find(r => r.id === environment_id && r.kind === 'environment')
       const scenario = resources?.find(r => r.id === scenario_id && r.kind === 'scenario')
-      if (!environment || !scenario) return error('Environment or scenario not found', 404)
+      if (!environment || !scenario || environment.archived_at || scenario.archived_at)
+        return error('Environment or scenario not found', 404)
       let envConfig, scenarioConfig
       try {
         envConfig = validateEnvironment(environment.config)
@@ -248,6 +251,10 @@ Deno.serve(async (req: Request) => {
       }
       const { data, error: dbError } = await admin.from('wf_sim_sessions').insert({
         project_id, environment_id, scenario_id, seed, max_steps,
+        environment_snapshot: environment.config,
+        scenario_snapshot: scenario.config,
+        environment_resource_version: environment.version,
+        scenario_resource_version: scenario.version,
         state: envConfig.initial_state, initial_state: envConfig.initial_state,
       }).select().single()
       return dbError ? error('Could not start simulation', 503) :
@@ -297,16 +304,26 @@ Deno.serve(async (req: Request) => {
       let nextState = session.state, nextStatus = 'running', score = null
       let checks = null, observation: Record<string, unknown> = {}
       let action = '__submit__', parameters: Record<string, unknown> = {}
-      const { data: resources, error: loadError } = await admin.from('wf_resources')
-        .select('id,kind,config').eq('project_id', session.project_id)
-        .in('id', [session.environment_id, session.scenario_id])
-      if (loadError) return error('Could not load simulation definitions', 503)
-      const environment = resources?.find(r => r.id === session.environment_id && r.kind === 'environment')
-      const scenario = resources?.find(r => r.id === session.scenario_id && r.kind === 'scenario')
-      if (!environment || !scenario) return error('Simulation definitions unavailable', 503)
+      // Active sessions always use their creation-time configuration snapshots.
+      // Existing legacy sessions without snapshots retain a read-only fallback.
+      let envSource = session.environment_snapshot
+      let scenarioSource = session.scenario_snapshot
+      if(!envSource || !scenarioSource){
+        const { data: resources, error: loadError } = await admin.from('wf_resources')
+          .select('id,kind,config').eq('project_id', session.project_id)
+          .in('id', [session.environment_id, session.scenario_id])
+        if (loadError) return error('Could not load simulation definitions', 503)
+        const environment = resources?.find(r => r.id === session.environment_id &&
+          r.kind === 'environment')
+        const scenario = resources?.find(r => r.id === session.scenario_id &&
+          r.kind === 'scenario')
+        if (!environment || !scenario) return error('Simulation definitions unavailable', 503)
+        envSource = environment.config
+        scenarioSource = scenario.config
+      }
       try {
-        const envConfig = validateEnvironment(environment.config)
-        const scenarioConfig = validateScenario(scenario.config)
+        const envConfig = validateEnvironment(envSource)
+        const scenarioConfig = validateScenario(scenarioSource)
         if (subresource === 'actions') {
           if (session.step >= session.max_steps) return error('Step limit reached', 409)
           if (typeof body.action !== 'string' || body.action.length > 64)
@@ -357,6 +374,11 @@ Deno.serve(async (req: Request) => {
         data?.[0] ? reply(data[0]) : error('Project not found', 404) : reply({ data })
     }
   }
+
+  const resourceResponse = await handleResources(req,collection,id,subresource,detail,body,{
+    admin,caller,ownedProject,reply,error,
+  })
+  if(resourceResponse)return resourceResponse
 
   const kind = kinds[collection]
   if (kind) {
