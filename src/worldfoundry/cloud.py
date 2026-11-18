@@ -39,23 +39,113 @@ class HTTPTransport:
 
 
 class CloudResourceManager:
+    """Typed remote resources; WorldFoundry API mediates all Supabase access."""
+
     def __init__(self, transport: HTTPTransport, path: str):
         self.transport, self.path = transport, path
 
     def create(self, **parameters: Any) -> dict[str, Any]:
+        """Create a new version-1 resource under a customer-owned project.
+
+        Supply either config={...} or explicit environment fields as kwargs.
+        Never supply a Supabase service key to this method.
+        """
         return self.transport.request("POST", f"/v1/{self.path}", parameters)
 
     def register(self, **parameters: Any) -> dict[str, Any]:
         return self.create(**parameters)
 
     def get(self, resource_id: str) -> dict[str, Any]:
-        return self.transport.request("GET", f"/v1/{self.path}/{resource_id}")
+        return self.transport.request("GET", f"/v1/{self.path}/{quote(resource_id, safe='')}")
 
-    def list(self) -> dict[str, Any]:
-        return self.transport.request("GET", f"/v1/{self.path}")
+    def list(self, project_id: str | None = None, *, limit: int = 50,
+             offset: int = 0, include_archived: bool = False) -> dict[str, Any]:
+        """Fetch up to 100 records; use next_offset for complete pagination."""
+        if not 1 <= limit <= 100 or not 0 <= offset <= 1_000_000:
+            raise ValueError("limit must be 1..100 and offset 0..1000000")
+        args = [f"limit={limit}", f"offset={offset}"]
+        if project_id is not None:
+            args.append("project_id=" + quote(project_id, safe=""))
+        if include_archived:
+            args.append("include_archived=true")
+        return self.transport.request("GET", f"/v1/{self.path}?" + "&".join(args))
+
+    def iter_all(self, project_id: str, *, page_size: int = 100,
+                 include_archived: bool = False):
+        """Lazily iterate any number of resources without loading all at once."""
+        offset = 0
+        while True:
+            page = self.list(project_id, limit=page_size, offset=offset,
+                             include_archived=include_archived)
+            for resource in page.get("data", []):
+                yield resource
+            offset = page.get("next_offset")
+            if offset is None:
+                break
 
     def update(self, resource_id: str, **parameters: Any) -> dict[str, Any]:
-        return self.transport.request("PATCH", f"/v1/{self.path}/{resource_id}", parameters)
+        """Resource changes need expected_version, protecting concurrent edits.
+
+        This generic manager also serves training-runs, whose status update
+        interface remains unchanged.
+        """
+        return self.transport.request("PATCH",
+                                      f"/v1/{self.path}/{quote(resource_id, safe='')}",
+                                      parameters)
+
+    def configure(self, resource_id: str, *, expected_version: int,
+                  config: dict[str, Any], name: str | None = None) -> dict[str, Any]:
+        if expected_version < 1 or not isinstance(config, dict):
+            raise ValueError("expected_version and dict config are required")
+        payload: dict[str, Any] = {"expected_version": expected_version, "config": config}
+        if name is not None:
+            payload["name"] = name
+        return self.update(resource_id, **payload)
+
+    def versions(self, resource_id: str, *, limit: int = 50,
+                 offset: int = 0) -> dict[str, Any]:
+        if not 1 <= limit <= 100 or not 0 <= offset <= 1_000_000:
+            raise ValueError("Invalid pagination")
+        return self.transport.request("GET",
+            f"/v1/{self.path}/{quote(resource_id, safe='')}/versions"
+            f"?limit={limit}&offset={offset}")
+
+    def version(self, resource_id: str, version: int) -> dict[str, Any]:
+        if version < 1:
+            raise ValueError("version must be positive")
+        return self.transport.request("GET",
+            f"/v1/{self.path}/{quote(resource_id, safe='')}/versions/{version}")
+
+    def restore(self, resource_id: str, *, version: int,
+                expected_version: int) -> dict[str, Any]:
+        """Restore a historical snapshot into a NEW version."""
+        return self.transport.request("POST",
+            f"/v1/{self.path}/{quote(resource_id, safe='')}/restore",
+            {"version": version, "expected_version": expected_version})
+
+    def archive(self, resource_id: str, *, expected_version: int) -> dict[str, Any]:
+        """Soft-delete, retaining histories and references for existing runs."""
+        return self.transport.request("POST",
+            f"/v1/{self.path}/{quote(resource_id, safe='')}/archive",
+            {"expected_version": expected_version})
+
+    def unarchive(self, resource_id: str, *, expected_version: int) -> dict[str, Any]:
+        return self.transport.request("POST",
+            f"/v1/{self.path}/{quote(resource_id, safe='')}/unarchive",
+            {"expected_version": expected_version})
+
+    def from_template(self, *, project_id: str, name: str, template_id: str,
+                      overrides: dict[str, Any] | None = None,
+                      template_version: int | None = None) -> dict[str, Any]:
+        if self.path != "environments":
+            raise ValueError("Only environments can be instantiated from templates")
+        data: dict[str, Any] = {
+            "project_id": project_id, "name": name, "template_id": template_id,
+            "overrides": overrides or {},
+        }
+        if template_version is not None:
+            data["template_version"] = template_version
+        return self.create(**data)
 
     def run(self, **parameters: Any) -> dict[str, Any]:
         return self.create(**parameters)
@@ -112,11 +202,15 @@ class CloudWorldFoundry:
         transport = HTTPTransport(base_url or self.DEFAULT_BASE_URL, api_key)
         self.projects = CloudResourceManager(transport, "projects")
         self.environments = CloudResourceManager(transport, "environments")
+        self.templates = CloudResourceManager(transport, "templates")
         self.agents = CloudResourceManager(transport, "agents")
         self.scenarios = CloudResourceManager(transport, "scenarios")
         self.datasets = CloudResourceManager(transport, "datasets")
         self.policies = CloudResourceManager(transport, "policies")
         self.validators = CloudResourceManager(transport, "validators")
+        self.tools = CloudResourceManager(transport, "tools")
+        self.workflows = CloudResourceManager(transport, "workflows")
+        self.applications = CloudResourceManager(transport, "applications")
         self.runs = CloudResourceManager(transport, "training-runs")
         self.training = CloudTrainingManager(transport)
         self.episodes = CloudResourceManager(transport, "episodes")
