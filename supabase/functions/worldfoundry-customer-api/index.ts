@@ -86,10 +86,6 @@ async function ownedEpisode(caller: Caller, episodeId: string) {
   return data
 }
 
-const kinds: Record<string, string> = {
-  environments: 'environment', agents: 'agent', scenarios: 'scenario',
-  datasets: 'dataset', policies: 'policy', validators: 'validator',
-}
 const safeEpisode = (episode: Record<string, unknown>) => {
   const { trace_object_key: _internal, ...customerFields } = episode
   return customerFields
@@ -379,33 +375,6 @@ Deno.serve(async (req: Request) => {
     admin,caller,ownedProject,reply,error,
   })
   if(resourceResponse)return resourceResponse
-
-  const kind = kinds[collection]
-  if (kind) {
-    if (req.method === 'POST' && !id) {
-      if (typeof body.project_id !== 'string' || !(await ownedProject(caller, body.project_id)))
-        return error('Unknown project', 404)
-      if (typeof body.name !== 'string' || !body.name.trim()) return error('name is required')
-      const { project_id, name, version = 1, ...config } = body
-      if (!Number.isInteger(version) || version < 1) return error('Invalid version')
-      const { data, error: dbError } = await admin.from('wf_resources').insert({
-        project_id, kind, name: name.trim(), version, config,
-      }).select().single()
-      return dbError ? error('Could not create resource', 500) : reply(data, 201)
-    }
-    if (req.method === 'GET') {
-      const { data: projects } = await admin.from('wf_projects').select('id')
-        .eq('owner_id', caller.ownerId)
-      const ids = (projects ?? []).map(project => project.id)
-        .filter(projectId => permitted(caller, projectId))
-      if (!ids.length) return id ? error('Resource not found', 404) : reply({ data: [] })
-      let query = admin.from('wf_resources').select('*').eq('kind', kind).in('project_id', ids)
-      if (id) query = query.eq('id', id)
-      const { data, error: dbError } = await query
-      return dbError ? error('Could not read resources', 500) : id ?
-        data?.[0] ? reply(data[0]) : error('Resource not found', 404) : reply({ data })
-    }
-  }
 
   if (collection === 'training-runs') {
     if (req.method === 'POST' && !id) {
