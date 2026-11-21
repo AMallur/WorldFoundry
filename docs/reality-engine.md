@@ -94,7 +94,7 @@ result = MetaARERunner(use_uvx=True).run(
 print(result.exit_code, result.stdout)
 ~~~
 
-This wraps the ARE executable. It does not automatically convert WordFoundry
+This wraps the ARE executable. It does not automatically convert WorldFoundry
 definitions to ARE universes or share their world state.
 
 ## What is not yet implemented
