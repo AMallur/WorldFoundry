@@ -15,6 +15,16 @@ Build agents anywhere. Train and test them in WorldFoundry.
 > isolation verification remain outstanding. Managed Python execution and billing are not
 > available. The Homebrew formula is not published.
 
+
+## Experimental reality reconstruction (local SDK)
+
+The `reality` environment supports reviewed business rules, atomic multi-record state
+changes, parameter guards, and recorded-reference outcome comparison. The SDK also includes
+offline OTLP/Debezium import, optional PM4Py process discovery, MCP episode tools, and an
+independent Meta ARE CLI runner. This is **not** an automatic enterprise replica or a
+production-ready hosted execution capability. See [the reality SDK guide](docs/reality-engine.md)
+for tested local examples and exact limitations.
+
 ## What works now
 
 - A Python SDK and `worldfoundry` / `wf` command-line interface.
