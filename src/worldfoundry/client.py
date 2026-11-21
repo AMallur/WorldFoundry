@@ -16,6 +16,7 @@ from .platform import (
     TrainingManager,
 )
 from .snapshots import SnapshotEnvironment
+from .reality import RealityEnvironment
 
 if TYPE_CHECKING:
     from .cloud import CloudWorldFoundry
@@ -45,6 +46,10 @@ class WorldFoundry(EpisodeEngine):
         self.environments.register_template(
             "snapshot", lambda settings: SnapshotEnvironment(settings, self.connectors),
             description=SnapshotEnvironment.description,
+        )
+        self.environments.register_template(
+            "reality", RealityEnvironment,
+            description=RealityEnvironment.description,
         )
         self.datasets = ResourceManager(registry, "dataset")
         self.policies = ResourceManager(registry, "policy")
