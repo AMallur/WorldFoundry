@@ -101,7 +101,7 @@ def directly_follows(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
         if not isinstance(case, str) or not case or not isinstance(activity, str):
             raise TypeError("Process event requires case_id and activity")
         if isinstance(timestamp, bool) or not isinstance(timestamp, (int, float)):
-            raise ValueError("Process event requires numeric timestamp")
+            raise TypeError("Process event requires numeric timestamp")
         groups[case].append((int(timestamp), activity))
     edges: Counter[tuple[str, str]] = Counter()
     starts: Counter[str] = Counter()
