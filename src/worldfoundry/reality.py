@@ -30,7 +30,7 @@ def _validate_evidence(value: Any) -> Any:
     if isinstance(value, Mapping):
         for key, item in value.items():
             if not isinstance(key, str):
-                raise ValueError("Evidence object keys must be strings")
+                raise TypeError("Evidence object keys must be strings")
             if key.lower().replace("-", "_") in PRIVATE_KEYS:
                 raise ValueError("Evidence includes a credential field")
             _validate_evidence(item)
@@ -64,7 +64,7 @@ class ReferenceCase:
             raise ValueError("Invalid reference action name")
         for value in (self.before, self.after, self.parameters):
             if not isinstance(value, dict):
-                raise ValueError("Reference states and parameters must be objects")
+                raise TypeError("Reference states and parameters must be objects")
             _validate_evidence(value)
         if self.response is not None:
             if not isinstance(self.response, dict):
@@ -294,11 +294,20 @@ class RealityEnvironment:
             elif operator == "contains":
                 passed = exists and isinstance(value, (str, list, dict)) and expected in value
             elif operator in ("gt", "gte", "lt", "lte", "lt"):
-                passed = (exists and all(isinstance(v, (int, float)) and not isinstance(v, bool)
-                                         for v in (value, expected)) and {
-                    "gt": lambda: value > expected, "gte": lambda: value >= expected,
-                    "lt": lambda: value < expected, "lte": lambda: value <= expected,
-                }[operator]())
+                numeric = (exists and all(
+                    isinstance(v, (int, float)) and not isinstance(v, bool)
+                    for v in (value, expected)
+                ))
+                if not numeric:
+                    passed = False
+                elif operator == "gt":
+                    passed = value > expected
+                elif operator == "gte":
+                    passed = value >= expected
+                elif operator == "lt":
+                    passed = value < expected
+                else:
+                    passed = value <= expected
             else:
                 raise EnvironmentError("Unknown guard operator")
             if not passed:
@@ -347,7 +356,7 @@ def verify_reference_cases(settings: dict[str, Any],
 def inspect_openapi(document: dict[str, Any]) -> list[dict[str, str]]:
     """Inventory APIs without falsely inventing their data mutations."""
     if not isinstance(document, dict) or not isinstance(document.get("paths"), dict):
-        raise ValueError("Expected an OpenAPI document with paths")
+        raise TypeError("Expected an OpenAPI document with paths")
     items = []
     for path, operations in document["paths"].items():
         if not isinstance(path, str) or not path.startswith("/") or not isinstance(operations, dict):
@@ -356,7 +365,7 @@ def inspect_openapi(document: dict[str, Any]) -> list[dict[str, str]]:
             if method.lower() not in {"get", "post", "put", "patch", "delete"}:
                 continue
             if not isinstance(spec, dict):
-                raise ValueError("Invalid OpenAPI operation")
+                raise TypeError("Invalid OpenAPI operation")
             items.append({"method": method.upper(), "path": path,
                           "operation_id": str(spec.get("operationId", "")),
                           "status": "interface_only_no_behavior_inferred"})
