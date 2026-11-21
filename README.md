@@ -1,5 +1,11 @@
 # WorldFoundry
 
+## Try WorldFoundry in your browser — one click
+
+**[Run the live simulation demo](https://worldfoundry-demo.vercel.app/)** — no login, API key, Python installation, or setup. One click runs two scripted support-agent workflows against the same simulated production outage and shows validation results and action traces.
+
+The demo uses the WorldFoundry Python SDK. It compares **scripted behaviors** for clarity; it does not execute an LLM or retrain agent weights. To connect your own agent or build an environment, follow the SDK instructions below.
+
 **Training infrastructure for AI agents.**
 
 WorldFoundry gives developers programmable environments where agents can practice real-world
