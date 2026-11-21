@@ -4,6 +4,7 @@ from .client import WorldFoundry
 from .declarative import DeclarativeEnvironment
 from .extensibility import ConnectorRegistry, EnvironmentPlugin, TemplateRegistry
 from .models import ActionSpec, Episode, StepResult, ValidationCheck, ValidationResult
+from .observation import debezium_row_changes, directly_follows, otlp_span_events, pm4py_discover
 from .reality import (
     RealityEnvironment,
     ReferenceCase,
@@ -29,6 +30,10 @@ __all__ = [
     "ValidationResult",
     "WorldFoundry",
     "cases_to_scenarios",
+    "debezium_row_changes",
+    "directly_follows",
+    "otlp_span_events",
+    "pm4py_discover",
     "inspect_openapi",
     "propose_actions",
     "verify_reference_cases",
