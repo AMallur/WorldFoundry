@@ -136,11 +136,11 @@ def test_proposals_are_draft_not_automatically_approved():
 def test_unsafe_or_unverified_evidence_does_not_pass_silently():
     with pytest.raises(ValueError, match="credential"):
         ReferenceCase("approve", {"api_key": "do-not-store"}, {})
-    with pytest.raises(ValueError, match="Schema changed"):
-        propose_actions([
-            ReferenceCase("create", {"x": {}}, {"x": {"new": "a"}}),
-            ReferenceCase("create", {"x": {}}, {"x": {"new": "b"}}),
-        ])
+    rejected = propose_actions([
+        ReferenceCase("create", {"x": {}}, {"x": {"new": "a"}}),
+        ReferenceCase("create", {"x": {}}, {"x": {"new": "b"}}),
+    ])
+    assert "create" in rejected["rejected"]
 
 
 def test_openapi_import_is_inventory_only():
