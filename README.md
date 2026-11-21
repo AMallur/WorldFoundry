@@ -95,12 +95,22 @@ Python 3.11–3.13 interpreter can be used.
 
 ### Registry installation
 
-After the 0.7.0 release appears on the [PyPI project page](https://pypi.org/project/worldfoundry/):
+For the v0.8.0 release on [PyPI](https://pypi.org/project/worldfoundry/):
 
 ```bash
-pip install worldfoundry==0.7.0
-uvx --from worldfoundry==0.7.0 worldfoundry --version
+python -m pip install --upgrade worldfoundry==0.8.0
+uvx --from worldfoundry==0.8.0 worldfoundry --version
 ```
+
+Optional local integrations:
+
+```bash
+python -m pip install "worldfoundry[mcp]==0.8.0"      # MCP agent tool bridge
+python -m pip install "worldfoundry[process]==0.8.0"  # PM4Py process discovery
+```
+
+The simulation and reconstruction features are experimental. See
+[the reality SDK guide](docs/reality-engine.md) for verified scope and limitations.
 
 Homebrew distribution is planned. This command does not work until a formula is published:
 
