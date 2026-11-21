@@ -235,7 +235,7 @@ class RealityEnvironment:
                 raise EnvironmentError("Invalid action response")
             for effect in spec["effects"]:
                 if not isinstance(effect, dict) or effect.get("operation") not in (
-                        "set", "append", "increment"):
+                        "read", "set", "append", "increment"):
                     raise EnvironmentError("Invalid state effect")
                 if "from_param" in effect and effect["from_param"] not in parameters:
                     raise EnvironmentError("Unknown effect parameter")
