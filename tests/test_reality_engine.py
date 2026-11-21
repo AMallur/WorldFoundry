@@ -166,3 +166,20 @@ def test_meta_are_runner_executes_only_validated_local_command():
     assert call.call_args.kwargs["shell"] is False
     with pytest.raises(ValueError, match="Unsafe"):
         runner.run("../bad scenario")
+
+
+def test_explicit_reference_response_and_read_only_action():
+    settings = config()
+    settings["actions"]["inspect"] = {
+        "parameters": {"request_id": {"type": "string"}},
+        "effects": [{"operation": "read", "path": "tickets.$request_id"}],
+        "response": {"ok": True},
+    }
+    environment = RealityEnvironment(settings)
+    before = environment.initial_state(0)
+    state = copy.deepcopy(before)
+    assert environment.perform(state, "inspect", {"request_id": "R1"}) == {"ok": True}
+    assert state == before
+    reference = ReferenceCase("inspect", before, before,
+                              parameters={"request_id": "R1"}, response={"ok": True})
+    assert verify_reference_cases(settings, [reference])["passed"] == 1
