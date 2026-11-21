@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping
+from itertools import pairwise
 from typing import Any
 
 
@@ -36,7 +37,7 @@ def otlp_span_events(document: dict[str, Any]) -> list[dict[str, Any]]:
                 trace_id, name = span.get("traceId"), span.get("name")
                 timestamp = span.get("startTimeUnixNano")
                 if not isinstance(trace_id, str) or not isinstance(name, str):
-                    raise ValueError("Trace span requires traceId and name")
+                    raise TypeError("Trace span requires traceId and name")
                 if timestamp is None:
                     raise ValueError("Trace span requires startTimeUnixNano")
                 events.append({
@@ -98,7 +99,7 @@ def directly_follows(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
         case, activity, timestamp = (event.get("case_id"), event.get("activity"),
                                      event.get("timestamp"))
         if not isinstance(case, str) or not case or not isinstance(activity, str):
-            raise ValueError("Process event requires case_id and activity")
+            raise TypeError("Process event requires case_id and activity")
         if isinstance(timestamp, bool) or not isinstance(timestamp, (int, float)):
             raise ValueError("Process event requires numeric timestamp")
         groups[case].append((int(timestamp), activity))
@@ -109,7 +110,7 @@ def directly_follows(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
         sequence = [activity for _, activity in sorted(observations)]
         starts[sequence[0]] += 1
         ends[sequence[-1]] += 1
-        edges.update(zip(sequence, sequence[1:]))
+        edges.update(pairwise(sequence))
     return {
         "cases": len(groups),
         "edges": [{"from": start, "to": end, "count": count}
