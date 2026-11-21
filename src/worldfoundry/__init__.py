@@ -38,4 +38,4 @@ __all__ = [
     "propose_actions",
     "verify_reference_cases",
 ]
-__version__ = "0.7.0"
+__version__ = "0.8.0"
