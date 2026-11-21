@@ -227,6 +227,12 @@ class RealityEnvironment:
                 if not isinstance(rule, dict) or rule.get("operator", "eq") not in (
                         "eq", "ne", "exists", "contains", "gte", "gt", "lte", "lt"):
                     raise EnvironmentError("Invalid business guard")
+            if any("from_param" in guard and guard["from_param"] not in parameters
+                   for guard in spec.get("guards", [])):
+                raise EnvironmentError("Unknown guard parameter")
+            if "response" in spec and (not isinstance(spec["response"], dict)
+                                       or _size(spec["response"]) > MAX_STATE_BYTES):
+                raise EnvironmentError("Invalid action response")
             for effect in spec["effects"]:
                 if not isinstance(effect, dict) or effect.get("operation") not in (
                         "set", "append", "increment"):
@@ -321,7 +327,7 @@ class RealityEnvironment:
             raise EnvironmentError("State exceeds 64 KiB")
         state.clear()
         state.update(draft)
-        return {"effects": results}
+        return copy.deepcopy(spec["response"]) if "response" in spec else {"effects": results}
 
     def validate(self, state: dict[str, Any]) -> ValidationResult:
         checks = self.settings.get("checks")
