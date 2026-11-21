@@ -77,8 +77,8 @@ def debezium_row_changes(messages: Iterable[Mapping[str, Any]], *,
         before, after = envelope.get("before"), envelope.get("after")
         if any(row is not None and not isinstance(row, Mapping) for row in (before, after)):
             raise TypeError("CDC before/after must be objects or null")
-        filtered = lambda row: {key: row[key] for key in sorted(fields) if row is not None
-                                and key in row}
+        def filtered(row: Mapping[str, Any] | None) -> dict[str, Any]:
+            return {key: row[key] for key in sorted(fields) if row is not None and key in row}
         results.append({
             "operation": operation,
             "before": filtered(before) if before is not None else None,
