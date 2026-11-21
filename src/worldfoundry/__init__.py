@@ -32,9 +32,9 @@ __all__ = [
     "cases_to_scenarios",
     "debezium_row_changes",
     "directly_follows",
+    "inspect_openapi",
     "otlp_span_events",
     "pm4py_discover",
-    "inspect_openapi",
     "propose_actions",
     "verify_reference_cases",
 ]
