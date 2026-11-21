@@ -23,6 +23,7 @@ dependencies = []
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.8"]
 mcp = ["mcp>=1.11,<2"]
+process = ["pm4py>=2.7,<3"]
 
 [project.scripts]
 worldfoundry = "worldfoundry.cli:main"
