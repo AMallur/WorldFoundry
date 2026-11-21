@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "worldfoundry"
-version = "0.7.0"
+version = "0.8.0"
 description = "Agent development and training-experience SDK"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -20,8 +20,15 @@ classifiers = [
 ]
 dependencies = []
 
+[project.urls]
+Homepage = "https://github.com/AMallur/WorldFoundry"
+Documentation = "https://github.com/AMallur/WorldFoundry/blob/main/docs/reality-engine.md"
+Issues = "https://github.com/AMallur/WorldFoundry/issues"
+
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.8"]
+mcp = ["mcp>=1.11,<2"]
+process = ["pm4py>=2.7,<3"]
 
 [project.scripts]
 worldfoundry = "worldfoundry.cli:main"
