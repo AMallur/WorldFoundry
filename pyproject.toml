@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "worldfoundry"
 version = "0.8.0"
-description = "Agent development and training-experience SDK"
+description = "Test AI agents against simulated workflows and score what they change"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "Apache-2.0"}
@@ -22,7 +22,8 @@ dependencies = []
 
 [project.urls]
 Homepage = "https://github.com/AMallur/WorldFoundry"
-Documentation = "https://github.com/AMallur/WorldFoundry/blob/main/docs/reality-engine.md"
+Documentation = "https://github.com/AMallur/WorldFoundry#quickstart"
+Demo = "https://worldfoundry-demo.vercel.app/?scenario=race"
 Issues = "https://github.com/AMallur/WorldFoundry/issues"
 
 [project.optional-dependencies]
